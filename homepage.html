@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vanaspati — Trees & Wildlife Encyclopedia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Jost:wght@300;400;500&family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:       #0e1a12;
+  --forest:    #162b1c;
+  --canopy:    #1f4028;
+  --moss:      #2e6040;
+  --fern:      #4a8a5a;
+  --mist:      #a8c4aa;
+  --cream:     #f5f0e6;
+  --parchment: #ede5cf;
+  --bark:      #7a5c3a;
+  --amber:     #c48a2e;
+  --gold:      #daa84a;
+  --rust:      #b55c2a;
+  --sky:       #4a7898;
+  --r: 0deg;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Jost',sans-serif;
+  background:var(--cream);
+  color:var(--ink);
+  overflow-x:hidden;
+  cursor:none;
+}
+
+/* ── CUSTOM CURSOR ── */
+.cursor{
+  position:fixed;width:10px;height:10px;
+  border-radius:50%;background:var(--gold);
+  pointer-events:none;z-index:9999;
+  transform:translate(-50%,-50%);
+  transition:transform 0.08s,width 0.2s,height 0.2s,background 0.2s;
+  mix-blend-mode:multiply;
+}
+.cursor-ring{
+  position:fixed;width:30px;height:30px;
+  border-radius:50%;border:1px solid var(--fern);
+  pointer-events:none;z-index:9998;
+  transform:translate(-50%,-50%);
+  transition:transform 0.18s ease,width 0.3s,height 0.3s;
+}
+
+/* ── GRAIN ── */
+body::after{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:800;opacity:.7;
+}
+
+/* ── NAV ── */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:700;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.4rem 3.5rem;
+  transition:all .4s;
+}
+header.solid{
+  background:rgba(14,26,18,.96);
+  backdrop-filter:blur(16px);
+  padding:1rem 3.5rem;
+  border-bottom:1px solid rgba(218,168,74,.12);
+}
+.logo{
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.65rem;font-weight:600;
+  color:var(--cream);text-decoration:none;
+  letter-spacing:.04em;
+}
+.logo em{font-style:italic;color:var(--gold);}
+
+.nav-mid{display:flex;gap:2.2rem;list-style:none;}
+.nav-mid a{
+  color:rgba(245,240,230,.7);font-size:.78rem;
+  font-weight:400;letter-spacing:.1em;text-transform:uppercase;
+  text-decoration:none;transition:color .3s;
+}
+.nav-mid a:hover{color:var(--gold);}
+
+.nav-right{display:flex;gap:.7rem;align-items:center;}
+.btn-nav{
+  padding:.42rem 1.1rem;font-size:.76rem;font-weight:500;
+  letter-spacing:.08em;text-transform:uppercase;
+  text-decoration:none;cursor:pointer;border:none;
+  font-family:'Jost',sans-serif;transition:all .3s;
+}
+.btn-sub{background:var(--gold);color:var(--ink);}
+.btn-sub:hover{background:#ebb85c;}
+.btn-coffee{
+  background:#FFDD00;color:#000;
+  display:inline-flex;align-items:center;gap:.35rem;
+}
+.btn-coffee:hover{background:#ffe633;transform:translateY(-1px);}
+
+/* ── HERO ── */
+.hero{
+  height:100vh;min-height:680px;
+  position:relative;display:flex;
+  align-items:center;overflow:hidden;
+}
+.hero-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 70% 80% at 65% 40%,rgba(46,96,64,.55) 0%,transparent 65%),
+    radial-gradient(ellipse 50% 60% at 15% 70%,rgba(181,92,42,.18) 0%,transparent 55%),
+    linear-gradient(150deg,#060e08 0%,#0e1a12 35%,#162b1c 65%,#1f4028 100%);
+}
+
+/* SVG forest silhouette */
+.forest-svg{
+  position:absolute;bottom:0;left:0;right:0;
+  height:65%;pointer-events:none;
+}
+
+/* Floating particles */
+.particles{position:absolute;inset:0;overflow:hidden;}
+.particle{
+  position:absolute;width:2px;height:2px;
+  border-radius:50%;background:var(--gold);
+  opacity:0;animation:drift var(--d,12s) var(--delay,0s) ease-in-out infinite;
+}
+@keyframes drift{
+  0%{opacity:0;transform:translateY(0) translateX(0);}
+  20%{opacity:.6;}
+  80%{opacity:.3;}
+  100%{opacity:0;transform:translateY(-120px) translateX(var(--x,20px));}
+}
+
+.hero-content{
+  position:relative;z-index:10;
+  padding:0 4rem;max-width:780px;
+}
+.hero-tag{
+  display:inline-flex;align-items:center;gap:.6rem;
+  color:var(--mist);font-size:.72rem;font-weight:400;
+  letter-spacing:.2em;text-transform:uppercase;
+  margin-bottom:1.8rem;
+  opacity:0;animation:up .8s .2s forwards;
+}
+.hero-tag::before{
+  content:'';display:block;
+  width:28px;height:1px;background:var(--mist);
+}
+.hero-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(3.5rem,7vw,6.5rem);
+  font-weight:300;line-height:1.0;
+  color:var(--cream);margin-bottom:1.6rem;
+  opacity:0;animation:up .9s .4s forwards;
+}
+.hero-title em{
+  font-style:italic;color:var(--gold);font-weight:300;
+}
+.hero-desc{
+  font-size:1.02rem;line-height:1.8;font-weight:300;
+  color:rgba(245,240,230,.65);max-width:520px;
+  margin-bottom:2.5rem;
+  opacity:0;animation:up .9s .6s forwards;
+}
+.hero-actions{
+  display:flex;gap:.9rem;flex-wrap:wrap;
+  opacity:0;animation:up .9s .8s forwards;
+}
+.btn-hero-primary{
+  padding:.9rem 2rem;background:var(--fern);color:var(--cream);
+  font-size:.85rem;font-weight:500;letter-spacing:.07em;
+  text-transform:uppercase;text-decoration:none;border:none;
+  cursor:pointer;transition:all .3s;font-family:'Jost',sans-serif;
+}
+.btn-hero-primary:hover{background:var(--moss);transform:translateY(-2px);box-shadow:0 10px 30px rgba(74,138,90,.3);}
+.btn-hero-ghost{
+  padding:.9rem 2rem;background:transparent;color:var(--cream);
+  font-size:.85rem;font-weight:400;letter-spacing:.07em;
+  text-transform:uppercase;text-decoration:none;
+  border:1px solid rgba(245,240,230,.3);cursor:pointer;
+  font-family:'Jost',sans-serif;transition:all .3s;
+}
+.btn-hero-ghost:hover{border-color:var(--gold);color:var(--gold);}
+
+/* hero scroll hint */
+.scroll-cue{
+  position:absolute;bottom:2.5rem;right:4rem;z-index:10;
+  display:flex;flex-direction:column;align-items:center;gap:.4rem;
+  color:rgba(245,240,230,.35);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;
+}
+.scroll-cue::after{
+  content:'';display:block;width:1px;height:44px;
+  background:linear-gradient(to bottom,rgba(218,168,74,.6),transparent);
+  animation:lineGrow 2s ease-in-out infinite;
+}
+@keyframes lineGrow{
+  0%{transform:scaleY(0);transform-origin:top;}
+  50%{transform:scaleY(1);transform-origin:top;}
+  51%{transform:scaleY(1);transform-origin:bottom;}
+  100%{transform:scaleY(0);transform-origin:bottom;}
+}
+@keyframes up{
+  from{opacity:0;transform:translateY(28px);}
+  to{opacity:1;transform:none;}
+}
+
+/* hero species count strip */
+.hero-strip{
+  position:absolute;right:0;top:50%;
+  transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:0;
+  z-index:10;
+}
+.strip-item{
+  padding:.9rem 1.4rem;
+  border-left:1px solid rgba(245,240,230,.08);
+  background:rgba(14,26,18,.6);
+  backdrop-filter:blur(8px);
+  text-align:right;
+  transition:background .3s;cursor:pointer;
+}
+.strip-item:hover{background:rgba(46,96,64,.5);}
+.strip-num{
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.5rem;font-weight:300;color:var(--gold);line-height:1;
+}
+.strip-label{
+  font-size:.65rem;color:rgba(245,240,230,.5);
+  letter-spacing:.1em;text-transform:uppercase;margin-top:.2rem;
+}
+
+/* ── SECTION UTILITY ── */
+.sec{padding:6rem 4rem;}
+.sec-label{
+  display:inline-flex;align-items:center;gap:.5rem;
+  font-size:.7rem;font-weight:500;letter-spacing:.2em;
+  text-transform:uppercase;margin-bottom:1rem;color:var(--fern);
+}
+.sec-label::before{content:'';display:block;width:22px;height:1px;background:currentColor;}
+.sec-h{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(2rem,3.5vw,2.9rem);
+  font-weight:400;line-height:1.18;color:var(--forest);
+  margin-bottom:1.2rem;
+}
+.sec-h em{font-style:italic;color:var(--bark);}
+
+/* ── REVEAL ── */
+.rv{opacity:0;transform:translateY(22px);transition:opacity .7s,transform .7s;}
+.rv.on{opacity:1;transform:none;}
+.rv.d1{transition-delay:.1s;}.rv.d2{transition-delay:.2s;}
+.rv.d3{transition-delay:.3s;}.rv.d4{transition-delay:.4s;}
+
+/* ── KINGDOMS GRID (like animalia categories) ── */
+.kingdoms{background:var(--parchment);}
+.kingdoms-intro{
+  display:flex;justify-content:space-between;
+  align-items:flex-end;margin-bottom:3rem;flex-wrap:wrap;gap:1rem;
+}
+.kingdoms-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:2px;background:rgba(46,96,64,.1);
+}
+.kingdom-card{
+  background:var(--cream);padding:0;
+  overflow:hidden;cursor:pointer;
+  position:relative;transition:all .35s;
+  aspect-ratio:3/4;
+  display:flex;flex-direction:column;justify-content:flex-end;
+}
+.kingdom-card:hover{transform:scale(1.02);z-index:2;box-shadow:0 20px 50px rgba(0,0,0,.18);}
+.kingdom-card:hover .kc-bg{transform:scale(1.08);}
+.kingdom-card:hover .kc-overlay{background:rgba(14,26,18,.55);}
+
+.kc-bg{
+  position:absolute;inset:0;
+  transition:transform .5s ease;
+}
+/* Each kingdom gets a unique CSS gradient "illustration" */
+.kc-bg.trees-tropical{
+  background:
+    radial-gradient(ellipse 40% 70% at 50% 80%,#1a3820 0%,transparent 60%),
+    radial-gradient(ellipse 20% 40% at 30% 90%,#2e6040 0%,transparent 40%),
+    radial-gradient(ellipse 20% 40% at 70% 88%,#1f4028 0%,transparent 40%),
+    linear-gradient(180deg,#0a1f10 0%,#1f4028 40%,#2e6040 80%,#4a8a5a 100%);
+}
+.kc-bg.trees-conifer{
+  background:
+    radial-gradient(ellipse 30% 80% at 50% 80%,#0d2218 0%,transparent 50%),
+    linear-gradient(180deg,#0a1508 0%,#162b1c 45%,#1f4028 100%);
+}
+.kc-bg.trees-deciduous{
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 90%,#3d6e3a 0%,transparent 60%),
+    linear-gradient(180deg,#1a2e10 0%,#2e5020 50%,#c48a2e44 100%);
+}
+.kc-bg.trees-mangrove{
+  background:
+    radial-gradient(ellipse 80% 40% at 50% 100%,#1a3a40 0%,transparent 50%),
+    linear-gradient(180deg,#081518 0%,#0d282e 50%,#1a4a50 100%);
+}
+.kc-bg.wild-mammals{
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 85%,#3d2a0a 0%,transparent 60%),
+    linear-gradient(180deg,#1a0e05 0%,#2e1e0a 50%,#7a5c3a 100%);
+}
+.kc-bg.wild-birds{
+  background:
+    radial-gradient(ellipse 60% 60% at 50% 40%,#1a2e50 0%,transparent 65%),
+    linear-gradient(180deg,#05101e 0%,#0d1f38 45%,#1e3a60 100%);
+}
+.kc-bg.wild-reptiles{
+  background:
+    radial-gradient(ellipse 50% 60% at 50% 80%,#1a3818 0%,transparent 55%),
+    radial-gradient(ellipse 30% 30% at 50% 50%,#2e500a 0%,transparent 50%),
+    linear-gradient(180deg,#0a0e05 0%,#141e0a 50%,#2a380a 100%);
+}
+.kc-bg.wild-insects{
+  background:
+    radial-gradient(ellipse 40% 50% at 50% 60%,#3a1a0a 0%,transparent 55%),
+    linear-gradient(180deg,#100805 0%,#1e1005 50%,#3a2010 100%);
+}
+
+/* CSS tree silhouettes inside cards */
+.kc-bg.trees-tropical::after{
+  content:'';position:absolute;
+  bottom:0;left:50%;transform:translateX(-50%);
+  width:80px;height:120px;
+  background:rgba(10,20,12,.8);
+  clip-path:polygon(50% 0%,55% 30%,80% 30%,55% 50%,65% 50%,50% 70%,35% 50%,45% 50%,20% 30%,45% 30%);
+}
+.kc-bg.trees-conifer::after{
+  content:'';position:absolute;
+  bottom:0;left:50%;transform:translateX(-50%);
+  width:60px;height:140px;
+  background:rgba(8,16,10,.9);
+  clip-path:polygon(50% 0%,62% 35%,57% 35%,68% 60%,60% 60%,72% 85%,28% 85%,40% 60%,32% 60%,43% 35%,38% 35%);
+}
+
+.kc-overlay{
+  position:absolute;inset:0;
+  background:rgba(14,26,18,.45);
+  transition:background .35s;
+}
+.kc-body{
+  position:relative;z-index:2;
+  padding:1.4rem 1.4rem 1.6rem;
+}
+.kc-num{
+  font-family:'Cormorant Garamond',serif;
+  font-size:2rem;font-weight:300;color:var(--gold);
+  line-height:1;
+}
+.kc-name{
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.2rem;font-weight:500;color:var(--cream);
+  margin-top:.3rem;letter-spacing:.02em;
+}
+.kc-sub{
+  font-size:.7rem;color:rgba(245,240,230,.5);
+  letter-spacing:.1em;text-transform:uppercase;margin-top:.2rem;
+}
+
+/* ── SPECIES OF THE DAY ── */
+.sotd{
+  background:var(--forest);
+  display:grid;grid-template-columns:1fr 1fr;
+  min-height:480px;overflow:hidden;
+}
+.sotd-visual{
+  background:
+    radial-gradient(ellipse 70% 80% at 50% 80%,rgba(74,138,90,.5) 0%,transparent 65%),
+    linear-gradient(160deg,#0a1a0e,#1f4028);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.sotd-tree-svg{
+  width:260px;opacity:.75;
+  animation:treeSway 6s ease-in-out infinite;
+}
+@keyframes treeSway{
+  0%,100%{transform:rotate(-1.5deg);}
+  50%{transform:rotate(1.5deg);}
+}
+.sotd-badge{
+  position:absolute;top:2rem;left:2rem;
+  background:rgba(218,168,74,.15);
+  border:1px solid rgba(218,168,74,.35);
+  padding:.4rem .9rem;
+  font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--gold);
+}
+.sotd-content{
+  padding:4rem 3.5rem;
+  display:flex;flex-direction:column;justify-content:center;
+}
+.sotd-tag{
+  font-size:.7rem;font-weight:400;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--mist);margin-bottom:.8rem;
+  display:flex;align-items:center;gap:.5rem;
+}
+.sotd-tag::before{content:'';width:20px;height:1px;background:var(--mist);display:block;}
+.sotd-name{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(2.2rem,4vw,3.5rem);
+  font-weight:400;color:var(--cream);line-height:1.1;
+  margin-bottom:.4rem;
+}
+.sotd-sci{
+  font-family:'Cormorant Garamond',serif;
+  font-style:italic;font-size:1.05rem;
+  color:var(--gold);margin-bottom:1.8rem;
+}
+.sotd-desc{
+  font-size:.95rem;line-height:1.82;font-weight:300;
+  color:rgba(245,240,230,.65);margin-bottom:2rem;
+}
+.sotd-tags{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem;}
+.tag-pill{
+  padding:.3rem .8rem;border:1px solid rgba(245,240,230,.12);
+  font-size:.7rem;color:rgba(245,240,230,.55);letter-spacing:.08em;text-transform:uppercase;
+}
+.btn-sotd{
+  align-self:flex-start;
+  padding:.75rem 1.8rem;background:transparent;
+  border:1px solid var(--gold);color:var(--gold);
+  font-size:.8rem;font-weight:400;letter-spacing:.1em;
+  text-transform:uppercase;text-decoration:none;cursor:pointer;
+  font-family:'Jost',sans-serif;transition:all .3s;
+}
+.btn-sotd:hover{background:var(--gold);color:var(--ink);}
+
+/* ── FACTS TICKER ── */
+.facts-ticker{
+  background:var(--canopy);
+  padding:1rem 0;overflow:hidden;
+  border-top:1px solid rgba(218,168,74,.1);
+  border-bottom:1px solid rgba(218,168,74,.1);
+}
+.ticker-track{
+  display:flex;gap:0;
+  animation:ticker 40s linear infinite;
+  white-space:nowrap;
+}
+@keyframes ticker{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+.ticker-item{
+  display:inline-flex;align-items:center;gap:.6rem;
+  padding:0 2.5rem;
+  font-size:.78rem;color:rgba(245,240,230,.6);font-weight:300;
+  border-right:1px solid rgba(245,240,230,.08);
+}
+.ticker-item span{color:var(--gold);}
+
+/* ── INTERESTING FACTS CARDS ── */
+.facts-sec{background:var(--parchment);}
+.facts-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1.5px;background:rgba(46,96,64,.08);
+  margin-top:3rem;
+}
+.fact-card{
+  background:var(--cream);padding:2.2rem 1.8rem;
+  border-bottom:3px solid transparent;
+  transition:all .35s;cursor:default;
+  position:relative;overflow:hidden;
+}
+.fact-card::before{
+  content:'';position:absolute;bottom:0;left:0;
+  height:3px;width:0;background:var(--amber);
+  transition:width .4s;
+}
+.fact-card:hover{background:var(--forest);}
+.fact-card:hover::before{width:100%;}
+.fact-card:hover .fc-title,.fact-card:hover .fc-body{color:rgba(245,240,230,.85);}
+.fact-card:hover .fc-species{color:var(--gold);}
+.fact-card:hover .fc-icon{filter:brightness(2);}
+
+.fc-icon{font-size:1.8rem;margin-bottom:1rem;transition:filter .35s;}
+.fc-species{
+  font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--fern);margin-bottom:.5rem;font-weight:500;
+  transition:color .35s;
+}
+.fc-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.3rem;font-weight:500;color:var(--forest);
+  margin-bottom:.7rem;transition:color .35s;line-height:1.3;
+}
+.fc-body{
+  font-size:.88rem;line-height:1.75;font-weight:300;
+  color:#5a7060;transition:color .35s;
+}
+
+/* ── A–Z BROWSE ── */
+.az-sec{background:var(--ink);}
+.az-sec .sec-label{color:var(--mist);}
+.az-sec .sec-label::before{background:var(--mist);}
+.az-sec .sec-h{color:var(--cream);}
+.az-sec .sec-h em{color:var(--gold);}
+.az-header{
+  display:flex;justify-content:space-between;
+  align-items:flex-end;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;
+}
+.az-sub{font-size:.9rem;color:rgba(245,240,230,.45);font-weight:300;max-width:420px;}
+.az-grid{
+  display:flex;flex-wrap:wrap;gap:2px;
+}
+.az-letter{
+  width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:400;
+  color:rgba(245,240,230,.4);
+  border:1px solid rgba(245,240,230,.07);
+  cursor:pointer;transition:all .25s;text-decoration:none;
+}
+.az-letter:hover,.az-letter.active{
+  background:var(--fern);color:var(--cream);
+  border-color:var(--fern);
+}
+
+.az-results{
+  margin-top:2.5rem;
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:1px;background:rgba(255,255,255,.04);
+}
+.az-item{
+  background:rgba(14,26,18,.6);
+  padding:1.2rem 1.4rem;cursor:pointer;
+  transition:background .25s;
+}
+.az-item:hover{background:rgba(46,96,64,.5);}
+.az-item-name{
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.05rem;font-weight:400;color:var(--cream);
+}
+.az-item-sci{
+  font-size:.72rem;color:rgba(245,240,230,.38);
+  font-style:italic;margin-top:.2rem;
+}
+.az-item-cat{
+  display:inline-block;margin-top:.5rem;
+  font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.15rem .5rem;border:1px solid rgba(74,138,90,.3);
+  color:var(--mist);
+}
+
+/* ── COLLECTIONS ── */
+.collections-sec{background:var(--cream);}
+.coll-grid{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:1.2rem;margin-top:2.5rem;
+}
+.coll-card{
+  position:relative;overflow:hidden;
+  border-radius:0;cursor:pointer;
+  aspect-ratio:3/4;transition:transform .35s;
+}
+.coll-card:hover{transform:translateY(-6px);z-index:2;}
+.coll-card:hover .cc-bg{transform:scale(1.1);}
+.cc-bg{
+  position:absolute;inset:0;
+  transition:transform .5s;
+}
+/* Collection backgrounds using CSS */
+.cc-bg.endangered{background:linear-gradient(160deg,#1a0e08,#4a1a0a,#8a3010);}
+.cc-bg.canopy{background:linear-gradient(160deg,#081008,#0a2010,#1a4020);}
+.cc-bg.monsoon{background:linear-gradient(160deg,#08101a,#0a1e30,#1a3860);}
+.cc-bg.sacred{background:linear-gradient(160deg,#1a1408,#302008,#604010);}
+.cc-bg.medicinal{background:linear-gradient(160deg,#0a1808,#142a10,#2a5020);}
+
+.cc-overlay{position:absolute;inset:0;background:rgba(14,26,18,.35);}
+.cc-body{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:1.2rem 1rem;background:linear-gradient(transparent,rgba(8,14,10,.9));
+}
+.cc-name{
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.05rem;font-weight:500;color:var(--cream);
+  line-height:1.25;
+}
+.cc-count{
+  font-size:.68rem;color:rgba(245,240,230,.5);
+  letter-spacing:.1em;text-transform:uppercase;margin-top:.25rem;
+}
+
+/* ── SUPPORT STRIP ── */
+.support-strip{
+  background:var(--parchment);
+  padding:5rem 4rem;
+  display:grid;grid-template-columns:1.4fr 1fr;
+  gap:4rem;align-items:center;
+}
+.sup-eyebrow{
+  font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--fern);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;
+}
+.sup-eyebrow::before{content:'';width:20px;height:1px;background:var(--fern);display:block;}
+.sup-h{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(1.8rem,3vw,2.6rem);font-weight:400;
+  color:var(--forest);line-height:1.2;margin-bottom:1rem;
+}
+.sup-h em{font-style:italic;color:var(--bark);}
+.sup-body{
+  font-size:.95rem;line-height:1.8;font-weight:300;
+  color:#5a7060;margin-bottom:2rem;
+}
+.sup-actions{display:flex;gap:.8rem;flex-wrap:wrap;}
+.btn-sup-pri{
+  padding:.8rem 1.8rem;background:var(--forest);color:var(--cream);
+  font-size:.82rem;font-weight:500;letter-spacing:.08em;
+  text-transform:uppercase;border:none;cursor:pointer;
+  font-family:'Jost',sans-serif;transition:all .3s;
+}
+.btn-sup-pri:hover{background:var(--canopy);}
+.btn-coffee-strip{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.8rem 1.6rem;background:#FFDD00;color:#000;
+  font-family:'Jost',sans-serif;font-size:.82rem;font-weight:600;
+  border:none;cursor:pointer;text-decoration:none;transition:all .3s;
+}
+.btn-coffee-strip:hover{background:#ffe633;transform:translateY(-1px);}
+
+.sup-plans{display:flex;flex-direction:column;gap:1px;background:rgba(46,96,64,.1);}
+.sup-plan{
+  background:var(--cream);padding:1.4rem 1.6rem;
+  display:flex;align-items:center;justify-content:space-between;
+  cursor:pointer;transition:background .3s;
+}
+.sup-plan:hover{background:var(--forest);}
+.sup-plan:hover .sp-name,.sup-plan:hover .sp-desc{color:var(--cream);}
+.sup-plan:hover .sp-price{color:var(--gold);}
+.sup-plan:hover .sp-btn{border-color:var(--gold);color:var(--gold);}
+.sp-left{}
+.sp-name{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:500;color:var(--forest);transition:color .3s;}
+.sp-desc{font-size:.78rem;color:#7a9080;font-weight:300;margin-top:.15rem;transition:color .3s;}
+.sp-price{font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--moss);font-weight:300;transition:color .3s;}
+.sp-btn{
+  margin-left:1rem;padding:.35rem .9rem;background:transparent;
+  border:1px solid rgba(46,96,64,.25);font-size:.72rem;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text-mid);cursor:pointer;
+  font-family:'Jost',sans-serif;transition:all .3s;white-space:nowrap;
+}
+
+/* ── NEWSLETTER ── */
+.newsletter{
+  background:var(--canopy);padding:4.5rem 4rem;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:2rem;flex-wrap:wrap;
+}
+.nl-left{}
+.nl-h{
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.8rem;font-weight:300;color:var(--cream);
+  margin-bottom:.4rem;
+}
+.nl-sub{font-size:.88rem;color:rgba(245,240,230,.5);font-weight:300;}
+.nl-form{display:flex;gap:0;min-width:360px;}
+.nl-input{
+  flex:1;padding:.85rem 1.1rem;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.15);border-right:none;
+  color:var(--cream);font-family:'Jost',sans-serif;font-size:.9rem;
+  outline:none;transition:border-color .3s;
+}
+.nl-input::placeholder{color:rgba(245,240,230,.35);}
+.nl-input:focus{border-color:var(--gold);}
+.nl-btn{
+  padding:.85rem 1.4rem;background:var(--gold);color:var(--ink);
+  border:none;font-family:'Jost',sans-serif;font-size:.8rem;
+  font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  cursor:pointer;transition:background .3s;white-space:nowrap;
+}
+.nl-btn:hover{background:#ebb85c;}
+
+/* ── FOOTER ── */
+footer{background:var(--ink);padding:4rem 4rem 2rem;}
+.ft-grid{
+  display:grid;grid-template-columns:2fr 1fr 1fr 1fr;
+  gap:3rem;margin-bottom:3rem;
+}
+.ft-brand{}
+.ft-logo{
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.5rem;font-weight:600;color:var(--cream);
+  display:block;margin-bottom:.8rem;
+}
+.ft-logo em{font-style:italic;color:var(--gold);}
+.ft-tagline{
+  font-size:.85rem;line-height:1.75;font-weight:300;
+  color:rgba(245,240,230,.38);margin-bottom:1.5rem;
+}
+.ft-social{display:flex;gap:.6rem;}
+.ft-soc{
+  width:32px;height:32px;border:1px solid rgba(255,255,255,.12);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;color:rgba(245,240,230,.4);
+  text-decoration:none;transition:all .3s;
+}
+.ft-soc:hover{border-color:var(--gold);color:var(--gold);}
+.ft-h{
+  font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(245,240,230,.4);margin-bottom:1.2rem;font-weight:500;
+}
+.ft-links{list-style:none;}
+.ft-links li{margin-bottom:.55rem;}
+.ft-links a{
+  font-size:.85rem;color:rgba(245,240,230,.38);
+  text-decoration:none;font-weight:300;transition:color .3s;
+}
+.ft-links a:hover{color:var(--gold);}
+.ft-bottom{
+  border-top:1px solid rgba(255,255,255,.05);
+  padding-top:1.5rem;
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem;
+}
+.ft-copy{font-size:.75rem;color:rgba(245,240,230,.25);font-weight:300;}
+.ft-india{font-size:.75rem;color:rgba(245,240,230,.25);}
+
+/* ── MODAL ── */
+.overlay{
+  display:none;position:fixed;inset:0;z-index:900;
+  background:rgba(8,16,10,.88);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;
+}
+.overlay.show{display:flex;}
+.modal{
+  background:var(--cream);max-width:400px;width:90%;
+  padding:2.8rem;position:relative;
+  animation:modalIn .3s ease;
+}
+@keyframes modalIn{
+  from{opacity:0;transform:translateY(18px);}
+  to{opacity:1;transform:none;}
+}
+.modal-x{
+  position:absolute;top:1rem;right:1.2rem;
+  background:none;border:none;font-size:1.4rem;
+  color:var(--mist);cursor:pointer;transition:color .3s;
+}
+.modal-x:hover{color:var(--forest);}
+.modal-h{
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.7rem;font-weight:500;color:var(--forest);margin-bottom:.4rem;
+}
+.modal-s{
+  font-size:.88rem;font-weight:300;color:#7a9080;
+  margin-bottom:1.8rem;line-height:1.6;
+}
+.m-input{
+  width:100%;padding:.82rem 1rem;margin-bottom:.9rem;
+  border:1px solid rgba(74,138,90,.18);background:var(--parchment);
+  font-family:'Jost',sans-serif;font-size:.9rem;color:var(--ink);
+  outline:none;transition:border-color .3s;
+}
+.m-input:focus{border-color:var(--fern);}
+.m-submit{
+  width:100%;padding:.88rem;background:var(--forest);color:var(--cream);
+  border:none;font-family:'Jost',sans-serif;font-size:.83rem;
+  font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+  cursor:pointer;transition:background .3s;margin-top:.4rem;
+}
+.m-submit:hover{background:var(--canopy);}
+.m-note{
+  font-size:.73rem;color:rgba(90,112,96,.7);
+  text-align:center;margin-top:.9rem;
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:960px){
+  header{padding:1rem 1.5rem;}
+  header.solid{padding:.8rem 1.5rem;}
+  .nav-mid,.nav-right{display:none;}
+  .sec{padding:4rem 1.5rem;}
+  .hero-content{padding:0 1.5rem;}
+  .hero-strip{display:none;}
+  .kingdoms-grid{grid-template-columns:repeat(2,1fr);}
+  .sotd{grid-template-columns:1fr;}
+  .sotd-visual{height:280px;}
+  .facts-grid{grid-template-columns:1fr;}
+  .az-results{grid-template-columns:repeat(2,1fr);}
+  .coll-grid{grid-template-columns:repeat(3,1fr);}
+  .support-strip{grid-template-columns:1fr;}
+  .newsletter{flex-direction:column;}
+  .nl-form{min-width:0;width:100%;}
+  .ft-grid{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- Custom cursor -->
+<div class="cursor" id="cur"></div>
+<div class="cursor-ring" id="curRing"></div>
+
+<!-- ═══ HEADER ═══ -->
+<header id="hdr">
+  <a href="#" class="logo">Vana<em>spati</em></a>
+  <ul class="nav-mid">
+    <li><a href="#trees">Trees</a></li>
+    <li><a href="#wildlife">Wildlife</a></li>
+    <li><a href="#facts">Interesting Facts</a></li>
+    <li><a href="#collections">Collections</a></li>
+    <li><a href="#az">A–Z Browse</a></li>
+    <li><a href="#about">About</a></li>
+  </ul>
+  <div class="nav-right">
+    <a href="https://www.buymeacoffee.com" target="_blank" class="btn-nav btn-coffee">☕ Coffee</a>
+    <button class="btn-nav btn-sub" onclick="openModal()">Subscribe</button>
+  </div>
+</header>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="hero-bg"></div>
+
+  <!-- Forest silhouette SVG -->
+  <svg class="forest-svg" viewBox="0 0 1440 500" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax slice">
+    <!-- Back layer trees -->
+    <g fill="rgba(14,26,18,0.8)">
+      <polygon points="200,500 200,280 160,340 200,200 240,340 200,280"/>
+      <rect x="195" y="380" width="10" height="120"/>
+      <polygon points="380,500 380,300 340,360 380,220 420,360 380,300"/>
+      <rect x="375" y="400" width="10" height="100"/>
+      <polygon points="600,500 600,260 555,330 600,180 645,330 600,260"/>
+      <rect x="594" y="360" width="12" height="140"/>
+      <polygon points="820,500 820,290 780,350 820,210 860,350 820,290"/>
+      <rect x="814" y="390" width="12" height="110"/>
+      <polygon points="1050,500 1050,270 1010,340 1050,190 1090,340 1050,270"/>
+      <rect x="1044" y="370" width="12" height="130"/>
+      <polygon points="1280,500 1280,300 1240,365 1280,215 1320,365 1280,300"/>
+      <rect x="1274" y="400" width="12" height="100"/>
+    </g>
+    <!-- Mid layer - broader trees -->
+    <g fill="rgba(10,20,14,0.95)">
+      <ellipse cx="100" cy="380" rx="90" ry="130"/>
+      <rect x="96" y="440" width="8" height="60"/>
+      <ellipse cx="320" cy="360" rx="80" ry="140"/>
+      <rect x="316" y="430" width="8" height="70"/>
+      <ellipse cx="520" cy="370" rx="100" ry="130"/>
+      <rect x="515" y="440" width="10" height="60"/>
+      <ellipse cx="720" cy="355" rx="85" ry="145"/>
+      <rect x="716" y="420" width="8" height="80"/>
+      <ellipse cx="950" cy="365" rx="95" ry="135"/>
+      <rect x="945" y="435" width="10" height="65"/>
+      <ellipse cx="1160" cy="350" rx="80" ry="150"/>
+      <rect x="1156" y="415" width="8" height="85"/>
+      <ellipse cx="1380" cy="375" rx="90" ry="125"/>
+      <rect x="1376" y="440" width="8" height="60"/>
+    </g>
+    <!-- Ground -->
+    <rect x="0" y="480" width="1440" height="20" fill="rgba(8,14,10,0.9)"/>
+  </svg>
+
+  <!-- Floating particles -->
+  <div class="particles" id="particles"></div>
+
+  <div class="hero-content">
+    <div class="hero-tag">Explore the Natural World of India</div>
+    <h1 class="hero-title">
+      Learn.<br>
+      <em>Explore.</em><br>
+      Value.
+    </h1>
+    <p class="hero-desc">The comprehensive encyclopedia of India's trees, forests and wild creatures — from the Himalayas to the Western Ghats, the mangroves of Sundarbans to the dry Deccan thorn forests.</p>
+    <div class="hero-actions">
+      <a href="#trees" class="btn-hero-primary">Explore Trees</a>
+      <a href="#wildlife" class="btn-hero-ghost">Discover Wildlife</a>
+    </div>
+  </div>
+
+  <!-- Side strip counts -->
+  <div class="hero-strip">
+    <div class="strip-item"><div class="strip-num">1,200+</div><div class="strip-label">Tree Species</div></div>
+    <div class="strip-item"><div class="strip-num">500+</div><div class="strip-label">Mammals</div></div>
+    <div class="strip-item"><div class="strip-num">1,300+</div><div class="strip-label">Birds</div></div>
+    <div class="strip-item"><div class="strip-num">460+</div><div class="strip-label">Reptiles</div></div>
+    <div class="strip-item"><div class="strip-num">600+</div><div class="strip-label">Butterfly Spp.</div></div>
+  </div>
+
+  <div class="scroll-cue">Scroll</div>
+</section>
+
+<!-- ═══ FACTS TICKER ═══ -->
+<div class="facts-ticker">
+  <div class="ticker-track" id="ticker">
+    <div class="ticker-item"><span>🌿</span> The Banyan tree is India's national tree — a single tree can spread over hectares</div>
+    <div class="ticker-item"><span>🐯</span> India holds over 75% of the world's wild tiger population</div>
+    <div class="ticker-item"><span>🌳</span> A mature Peepal tree releases oxygen even at night — unique among trees</div>
+    <div class="ticker-item"><span>🦅</span> The Indian Peacock can fly at speeds of up to 16 km/h despite its heavy plumage</div>
+    <div class="ticker-item"><span>🌴</span> Coconut palms provide over 20 different useful products from a single tree</div>
+    <div class="ticker-item"><span>🐘</span> Asian elephants can recognise themselves in mirrors, a sign of self-awareness</div>
+    <div class="ticker-item"><span>🎋</span> Bamboo can grow up to 91 cm in a single day — the fastest growing plant on Earth</div>
+    <div class="ticker-item"><span>🦋</span> India is home to over 1,300 butterfly species, more than all of Europe combined</div>
+    <!-- duplicate for seamless loop -->
+    <div class="ticker-item"><span>🌿</span> The Banyan tree is India's national tree — a single tree can spread over hectares</div>
+    <div class="ticker-item"><span>🐯</span> India holds over 75% of the world's wild tiger population</div>
+    <div class="ticker-item"><span>🌳</span> A mature Peepal tree releases oxygen even at night — unique among trees</div>
+    <div class="ticker-item"><span>🦅</span> The Indian Peacock can fly at speeds of up to 16 km/h despite its heavy plumage</div>
+    <div class="ticker-item"><span>🌴</span> Coconut palms provide over 20 different useful products from a single tree</div>
+    <div class="ticker-item"><span>🐘</span> Asian elephants can recognise themselves in mirrors, a sign of self-awareness</div>
+    <div class="ticker-item"><span>🎋</span> Bamboo can grow up to 91 cm in a single day — the fastest growing plant on Earth</div>
+    <div class="ticker-item"><span>🦋</span> India is home to over 1,300 butterfly species, more than all of Europe combined</div>
+  </div>
+</div>
+
+<!-- ═══ KINGDOMS ═══ -->
+<section class="kingdoms sec" id="trees">
+  <div class="kingdoms-intro">
+    <div>
+      <div class="sec-label rv">Explore by Category</div>
+      <h2 class="sec-h rv d1">Trees &amp; <em>Wildlife</em></h2>
+    </div>
+    <p style="font-size:.9rem;color:#5a7060;font-weight:300;max-width:320px;" class="rv d2">Browse thousands of species organised by their place in India's remarkable ecosystems.</p>
+  </div>
+
+  <div class="kingdoms-grid rv d1">
+    <!-- Trees -->
+    <div class="kingdom-card">
+      <div class="kc-bg trees-tropical"></div>
+      <div class="kc-overlay"></div>
+      <div class="kc-body">
+        <div class="kc-num">320+</div>
+        <div class="kc-name">Tropical Trees</div>
+        <div class="kc-sub">Western Ghats · Andaman</div>
+      </div>
+    </div>
+    <div class="kingdom-card">
+      <div class="kc-bg trees-conifer"></div>
+      <div class="kc-overlay"></div>
+      <div class="kc-body">
+        <div class="kc-num">85+</div>
+        <div class="kc-name">Conifer Trees</div>
+        <div class="kc-sub">Himalayan · Alpine</div>
+      </div>
+    </div>
+    <div class="kingdom-card">
+      <div class="kc-bg trees-deciduous"></div>
+      <div class="kc-overlay"></div>
+      <div class="kc-body">
+        <div class="kc-num">420+</div>
+        <div class="kc-name">Deciduous Trees</div>
+        <div class="kc-sub">Central · Peninsular India</div>
+      </div>
+    </div>
+    <div class="kingdom-card">
+      <div class="kc-bg trees-mangrove"></div>
+      <div class="kc-overlay"></div>
+      <div class="kc-body">
+        <div class="kc-num">46+</div>
+        <div class="kc-name">Mangrove Trees</div>
+        <div class="kc-sub">Sundarbans · Coastal</div>
+      </div>
+    </div>
+    <!-- Wildlife -->
+    <div class="kingdom-card" id="wildlife">
+      <div class="kc-bg wild-mammals"></div>
+      <div class="kc-overlay"></div>
+      <div class="kc-body">
+        <div class="kc-num">500+</div>
+        <div class="kc-name">Mammals</div>
+        <div class="kc-sub">Tiger · Elephant · Leopard</div>
+      </div>
+    </div>
+    <div class="kingdom-card">
+      <div class="kc-bg wild-birds"></div>
+      <div class="kc-overlay"></div>
+      <div class="kc-body">
+        <div class="kc-num">1,300+</div>
+        <div class="kc-name">Birds</div>
+        <div class="kc-sub">Resident &amp; Migratory</div>
+      </div>
+    </div>
+    <div class="kingdom-card">
+      <div class="kc-bg wild-reptiles"></div>
+      <div class="kc-overlay"></div>
+      <div class="kc-body">
+        <div class="kc-num">460+</div>
+        <div class="kc-name">Reptiles</div>
+        <div class="kc-sub">Snakes · Lizards · Crocs</div>
+      </div>
+    </div>
+    <div class="kingdom-card">
+      <div class="kc-bg wild-insects"></div>
+      <div class="kc-overlay"></div>
+      <div class="kc-body">
+        <div class="kc-num">1,600+</div>
+        <div class="kc-name">Insects &amp; Butterflies</div>
+        <div class="kc-sub">Including 1,300 spp. butterflies</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SPECIES OF THE DAY ═══ -->
+<div class="sotd rv">
+  <div class="sotd-visual">
+    <div class="sotd-badge">Species of the Day</div>
+    <!-- SVG Banyan tree illustration -->
+    <svg class="sotd-tree-svg" viewBox="0 0 260 380" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <!-- Main trunk -->
+      <path d="M130 360 L130 200" stroke="rgba(122,92,58,0.9)" stroke-width="18" stroke-linecap="round"/>
+      <!-- Aerial roots -->
+      <path d="M80 240 Q75 290 72 360" stroke="rgba(122,92,58,0.6)" stroke-width="6" stroke-linecap="round"/>
+      <path d="M185 250 Q192 300 195 360" stroke="rgba(122,92,58,0.6)" stroke-width="6" stroke-linecap="round"/>
+      <path d="M60 220 Q52 270 50 360" stroke="rgba(122,92,58,0.4)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M200 230 Q210 280 212 360" stroke="rgba(122,92,58,0.4)" stroke-width="4" stroke-linecap="round"/>
+      <!-- Branches -->
+      <path d="M130 200 Q90 170 50 160" stroke="rgba(122,92,58,0.8)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M130 200 Q170 165 210 155" stroke="rgba(122,92,58,0.8)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M130 220 Q100 195 70 185" stroke="rgba(122,92,58,0.7)" stroke-width="7" stroke-linecap="round"/>
+      <path d="M130 215 Q155 188 185 178" stroke="rgba(122,92,58,0.7)" stroke-width="7" stroke-linecap="round"/>
+      <!-- Canopy blobs -->
+      <ellipse cx="130" cy="120" rx="90" ry="70" fill="rgba(46,96,64,0.7)"/>
+      <ellipse cx="60" cy="140" rx="55" ry="45" fill="rgba(31,64,40,0.75)"/>
+      <ellipse cx="200" cy="135" rx="55" ry="45" fill="rgba(31,64,40,0.75)"/>
+      <ellipse cx="100" cy="100" rx="50" ry="40" fill="rgba(74,138,90,0.5)"/>
+      <ellipse cx="165" cy="95" rx="50" ry="40" fill="rgba(74,138,90,0.5)"/>
+      <ellipse cx="130" cy="80" rx="40" ry="35" fill="rgba(74,138,90,0.45)"/>
+      <!-- Light glints -->
+      <ellipse cx="100" cy="95" rx="12" ry="8" fill="rgba(168,196,170,0.2)" transform="rotate(-20,100,95)"/>
+      <ellipse cx="160" cy="88" rx="10" ry="7" fill="rgba(168,196,170,0.2)" transform="rotate(15,160,88)"/>
+    </svg>
+  </div>
+  <div class="sotd-content">
+    <div class="sotd-tag">Tree of the Day</div>
+    <div class="sotd-name">Banyan Tree</div>
+    <div class="sotd-sci">Ficus benghalensis</div>
+    <p class="sotd-desc">India's national tree, the Banyan is a strangler fig that begins life as a seed in another tree's canopy. Its iconic aerial roots descend to the ground, forming new trunks that allow a single tree to spread over several hectares. The Great Banyan in Kolkata's Acharya Jagadish Chandra Bose Botanical Garden covers over 3.5 acres — making it the widest tree in the world.</p>
+    <div class="sotd-tags">
+      <span class="tag-pill">Moraceae</span>
+      <span class="tag-pill">Deciduous</span>
+      <span class="tag-pill">Sacred Tree</span>
+      <span class="tag-pill">Pan-India</span>
+      <span class="tag-pill">National Tree</span>
+    </div>
+    <a href="#" class="btn-sotd">Read Full Profile →</a>
+  </div>
+</div>
+
+<!-- ═══ INTERESTING FACTS ═══ -->
+<section class="facts-sec sec" id="facts">
+  <div class="sec-label rv">Interesting Facts</div>
+  <h2 class="sec-h rv d1">What makes them <em>extraordinary</em></h2>
+
+  <div class="facts-grid">
+    <div class="fact-card rv">
+      <div class="fc-icon">🌳</div>
+      <div class="fc-species">Peepal · Ficus religiosa</div>
+      <div class="fc-title">The only tree that exhales oxygen 24 hours a day</div>
+      <p class="fc-body">Unlike most plants that release CO₂ at night, the sacred Peepal performs Crassulacean Acid Metabolism (CAM), enabling continuous oxygen production. This is why ancient scriptures forbade sleeping under it at night — the O₂ surge was believed to attract spirits.</p>
+    </div>
+    <div class="fact-card rv d1">
+      <div class="fc-icon">🐯</div>
+      <div class="fc-species">Bengal Tiger · Panthera tigris tigris</div>
+      <div class="fc-title">Each tiger's stripes are as unique as a human fingerprint</div>
+      <p class="fc-body">No two tigers share the same stripe pattern. Wildlife conservationists use stripe photography — called "camera trap identification" — to track individuals through dense forests without disturbing them, building population databases for Project Tiger reserves across India.</p>
+    </div>
+    <div class="fact-card rv d2">
+      <div class="fc-icon">🎋</div>
+      <div class="fc-species">Bamboo · Bambusoideae</div>
+      <div class="fc-title">A grass that outgrows any tree — up to 91 cm in one day</div>
+      <p class="fc-body">Technically a grass, certain bamboo species recorded in India's Northeast grow up to 91 cm in 24 hours. The Mautak bamboo of Mizoram flowers only once every 48 years — and when it does, it triggers a famine-level rat population explosion known as "Mautam."</p>
+    </div>
+    <div class="fact-card rv">
+      <div class="fc-icon">🐘</div>
+      <div class="fc-species">Asian Elephant · Elephas maximus</div>
+      <div class="fc-title">Elephants communicate through seismic vibrations in the ground</div>
+      <p class="fc-body">Asian elephants produce low-frequency rumbles — some inaudible to humans — that travel through the earth as seismic waves. Herds can detect these vibrations through their sensitive feet and trunks from over 30 kilometres away, enabling long-distance communication across forest corridors.</p>
+    </div>
+    <div class="fact-card rv d1">
+      <div class="fc-icon">🌴</div>
+      <div class="fc-species">Areca Palm · Areca catechu</div>
+      <div class="fc-title">A palm that sustains 600 million people's daily ritual</div>
+      <p class="fc-body">The areca nut (supari) is chewed daily by an estimated 600 million people globally — making it the fourth most widely consumed psychoactive substance after tobacco, alcohol and caffeine. Every part of the tree, from sheaths to fronds, finds traditional use across South and Southeast Asia.</p>
+    </div>
+    <div class="fact-card rv d2">
+      <div class="fc-icon">🦜</div>
+      <div class="fc-species">Indian Peacock · Pavo cristatus</div>
+      <div class="fc-title">The train isn't a tail — and it's controlled by UV vision</div>
+      <p class="fc-body">The peacock's spectacular "tail" is actually its upper tail covert feathers. Peahens choose mates partly based on UV reflectance patterns invisible to human eyes. The quivering display produces low-frequency sound waves (infrasound) below 100 Hz that researchers believe also attract females from considerable distances.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ A–Z BROWSE ═══ -->
+<section class="az-sec sec" id="az">
+  <div class="az-header">
+    <div>
+      <div class="sec-label rv">Browse the Encyclopedia</div>
+      <h2 class="sec-h rv d1">Species from <em>A to Z</em></h2>
+    </div>
+    <p class="az-sub rv d2">Every tree and creature in our database, indexed alphabetically for quick discovery.</p>
+  </div>
+
+  <div class="az-grid rv">
+    <!-- Letters A–Z -->
+  </div>
+
+  <div class="az-results" id="azResults"></div>
+</section>
+
+<!-- ═══ COLLECTIONS ═══ -->
+<section class="collections-sec sec" id="collections">
+  <div class="sec-label rv">Curated Collections</div>
+  <h2 class="sec-h rv d1">All you want to know — <em>beautifully organised</em></h2>
+
+  <div class="coll-grid rv d1">
+    <div class="coll-card">
+      <div class="cc-bg endangered"></div>
+      <div class="cc-overlay"></div>
+      <div class="cc-body">
+        <div class="cc-name">Critically Endangered Species</div>
+        <div class="cc-count">34 Species</div>
+      </div>
+    </div>
+    <div class="coll-card">
+      <div class="cc-bg canopy"></div>
+      <div class="cc-overlay"></div>
+      <div class="cc-body">
+        <div class="cc-name">Canopy Giants of India</div>
+        <div class="cc-count">28 Tree Species</div>
+      </div>
+    </div>
+    <div class="coll-card">
+      <div class="cc-bg monsoon"></div>
+      <div class="cc-overlay"></div>
+      <div class="cc-body">
+        <div class="cc-name">Monsoon Forest Dwellers</div>
+        <div class="cc-count">52 Species</div>
+      </div>
+    </div>
+    <div class="coll-card">
+      <div class="cc-bg sacred"></div>
+      <div class="cc-overlay"></div>
+      <div class="cc-body">
+        <div class="cc-name">Sacred Trees of India</div>
+        <div class="cc-count">18 Species</div>
+      </div>
+    </div>
+    <div class="coll-card">
+      <div class="cc-bg medicinal"></div>
+      <div class="cc-overlay"></div>
+      <div class="cc-body">
+        <div class="cc-name">Medicinal Plants & Trees</div>
+        <div class="cc-count">120+ Species</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SUPPORT ═══ -->
+<div class="support-strip" id="about">
+  <div>
+    <div class="sup-eyebrow rv">Support Vanaspati</div>
+    <h2 class="sup-h rv d1">Help us document <em>every species</em> before it disappears</h2>
+    <p class="sup-body rv d2">Building and maintaining a free, comprehensive encyclopedia of India's biodiversity takes dedicated research, field documentation, and expert validation. Your support keeps it open for everyone.</p>
+    <div class="sup-actions rv d3">
+      <button class="btn-sup-pri" onclick="openModal()">Subscribe Free</button>
+      <a href="https://www.buymeacoffee.com" target="_blank" class="btn-coffee-strip">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 2C7 2 8 3 8 5C8 7 6 8 6 10" stroke="#000" stroke-width="1.8" stroke-linecap="round"/><path d="M12 2C12 2 13 3 13 5C13 7 11 8 11 10" stroke="#000" stroke-width="1.8" stroke-linecap="round"/><path d="M17 2C17 2 18 3 18 5C18 7 16 8 16 10" stroke="#000" stroke-width="1.8" stroke-linecap="round"/><path d="M3 14H19L17.5 22H4.5L3 14Z" stroke="#000" stroke-width="1.8" stroke-linejoin="round"/><path d="M19 14H21C22.1 14 23 13.1 23 12C23 10.9 22.1 10 21 10H18" stroke="#000" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Buy Me a Coffee
+      </a>
+    </div>
+  </div>
+
+  <div class="sup-plans rv d2">
+    <div class="sup-plan">
+      <div class="sp-left">
+        <div class="sp-name">Seedling</div>
+        <div class="sp-desc">Follow the encyclopedia as it grows</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <div class="sp-price">Free</div>
+        <button class="sp-btn" onclick="openModal()">Join</button>
+      </div>
+    </div>
+    <div class="sup-plan">
+      <div class="sp-left">
+        <div class="sp-name">Naturalist</div>
+        <div class="sp-desc">Monthly deep-dives & field notes</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <div class="sp-price">₹199<small style="font-size:.9rem;opacity:.6">/mo</small></div>
+        <button class="sp-btn">Support</button>
+      </div>
+    </div>
+    <div class="sup-plan">
+      <div class="sp-left">
+        <div class="sp-name">Conservationist</div>
+        <div class="sp-desc">Field reports, rare sighting alerts</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <div class="sp-price">₹499<small style="font-size:.9rem;opacity:.6">/mo</small></div>
+        <button class="sp-btn">Support</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NEWSLETTER ═══ -->
+<div class="newsletter">
+  <div class="nl-left rv">
+    <div class="nl-h">Stay rooted. Get updates.</div>
+    <p class="nl-sub">New species profiles, rare sightings & conservation news — weekly in your inbox.</p>
+  </div>
+  <div class="nl-form rv d2">
+    <input type="email" class="nl-input" placeholder="your@email.com" id="nlEmail">
+    <button class="nl-btn" id="nlBtn" onclick="nlSubscribe()">Subscribe</button>
+  </div>
+</div>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+  <div class="ft-grid">
+    <div class="ft-brand">
+      <span class="ft-logo">Vana<em>spati</em></span>
+      <p class="ft-tagline">A free encyclopedia of India's trees,<br>forests and wild creatures.<br>Built with love for the natural world.</p>
+      <div class="ft-social">
+        <a href="#" class="ft-soc">in</a>
+        <a href="#" class="ft-soc">tw</a>
+        <a href="#" class="ft-soc">ig</a>
+        <a href="#" class="ft-soc">yt</a>
+      </div>
+    </div>
+    <div>
+      <div class="ft-h">Trees</div>
+      <ul class="ft-links">
+        <li><a href="#">Tropical Trees</a></li>
+        <li><a href="#">Conifer Trees</a></li>
+        <li><a href="#">Deciduous Trees</a></li>
+        <li><a href="#">Mangroves</a></li>
+        <li><a href="#">Sacred Trees</a></li>
+        <li><a href="#">Medicinal Plants</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="ft-h">Wildlife</div>
+      <ul class="ft-links">
+        <li><a href="#">Mammals</a></li>
+        <li><a href="#">Birds</a></li>
+        <li><a href="#">Reptiles</a></li>
+        <li><a href="#">Amphibians</a></li>
+        <li><a href="#">Insects & Butterflies</a></li>
+        <li><a href="#">Marine Life</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="ft-h">Explore</div>
+      <ul class="ft-links">
+        <li><a href="#">Collections</a></li>
+        <li><a href="#">A–Z Browse</a></li>
+        <li><a href="#">Species of the Day</a></li>
+        <li><a href="#">Conservation Status</a></li>
+        <li><a href="#" onclick="openModal();return false;">Subscribe</a></li>
+        <li><a href="https://www.buymeacoffee.com" target="_blank">☕ Buy Me a Coffee</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="ft-bottom">
+    <span class="ft-copy">© 2025 Vanaspati. Free for everyone, always.</span>
+    <span class="ft-india">🇮🇳 Celebrating India's Biodiversity</span>
+  </div>
+</footer>
+
+<!-- ═══ SUBSCRIBE MODAL ═══ -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal()">×</button>
+    <div class="modal-h">Join Vanaspati</div>
+    <p class="modal-s">Get weekly species profiles, rare sighting alerts, and conservation stories from across India's forests.</p>
+    <input type="text" class="m-input" placeholder="Your name">
+    <input type="email" class="m-input" placeholder="Your email address">
+    <select class="m-input" style="appearance:none;cursor:pointer;color:#3d5030;">
+      <option value="">I'm interested in...</option>
+      <option>Trees & Forests</option>
+      <option>Wildlife & Birds</option>
+      <option>Both Trees & Wildlife</option>
+      <option>Conservation Science</option>
+      <option>Nature Photography</option>
+    </select>
+    <button class="m-submit" id="mBtn" onclick="modalSubmit()">Subscribe — It's Free</button>
+    <p class="m-note">No spam, ever. Unsubscribe anytime with one click.</p>
+  </div>
+</div>
+
+<script>
+// ── Custom cursor
+const cur = document.getElementById('cur');
+const ring = document.getElementById('curRing');
+document.addEventListener('mousemove', e => {
+  cur.style.left = e.clientX + 'px'; cur.style.top = e.clientY + 'px';
+  ring.style.left = e.clientX + 'px'; ring.style.top = e.clientY + 'px';
+});
+document.querySelectorAll('a,button,.kingdom-card,.fact-card,.az-letter,.coll-card').forEach(el => {
+  el.addEventListener('mouseenter', () => { cur.style.width='16px'; cur.style.height='16px'; });
+  el.addEventListener('mouseleave', () => { cur.style.width='10px'; cur.style.height='10px'; });
+});
+
+// ── Navbar scroll
+const hdr = document.getElementById('hdr');
+window.addEventListener('scroll', () => hdr.classList.toggle('solid', window.scrollY > 60));
+
+// ── Scroll reveal
+const rv = document.querySelectorAll('.rv');
+const rvo = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){e.target.classList.add('on');rvo.unobserve(e.target);}}),{threshold:.1});
+rv.forEach(el => rvo.observe(el));
+
+// ── Build A–Z letters
+const azGrid = document.querySelector('.az-grid');
+const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+alphabet.forEach(l => {
+  const a = document.createElement('a');
+  a.className = 'az-letter'; a.textContent = l; a.href = '#';
+  a.addEventListener('click', e => { e.preventDefault(); setLetter(l, a); });
+  azGrid.appendChild(a);
+});
+
+// ── A–Z data
+const azData = {
+  A:[{name:'Ashoka Tree',sci:'Saraca asoca',cat:'Sacred Tree'},{name:'Areca Palm',sci:'Areca catechu',cat:'Palm'},{name:'Asian Elephant',sci:'Elephas maximus',cat:'Mammal'},{name:'Asian Koel',sci:'Eudynamys scolopaceus',cat:'Bird'}],
+  B:[{name:'Banyan Tree',sci:'Ficus benghalensis',cat:'National Tree'},{name:'Bamboo',sci:'Bambusoideae spp.',cat:'Grass/Tree'},{name:'Bengal Tiger',sci:'Panthera tigris tigris',cat:'Mammal'},{name:'Brahminy Kite',sci:'Haliastur indus',cat:'Bird'}],
+  C:[{name:'Coconut Palm',sci:'Cocos nucifera',cat:'Palm'},{name:'Chir Pine',sci:'Pinus roxburghii',cat:'Conifer'},{name:'Chital',sci:'Axis axis',cat:'Mammal'},{name:'Common Kingfisher',sci:'Alcedo atthis',cat:'Bird'}],
+  D:[{name:'Deodar Cedar',sci:'Cedrus deodara',cat:'Conifer'},{name:'Dhak / Flame of Forest',sci:'Butea monosperma',cat:'Deciduous'},{name:'Dholes',sci:'Cuon alpinus',cat:'Mammal'},{name:'Drongo',sci:'Dicrurus macrocercus',cat:'Bird'}],
+  E:[{name:'Eucalyptus',sci:'Eucalyptus globulus',cat:'Introduced Tree'},{name:'Eastern Cottonwood',sci:'Populus deltoides',cat:'Deciduous'},{name:'Elephanta',sci:'Elephas maximus',cat:'Mammal'}],
+  G:[{name:'Gulmohar',sci:'Delonix regia',cat:'Ornamental Tree'},{name:'Gharial',sci:'Gavialis gangeticus',cat:'Reptile'},{name:'Gaur',sci:'Bos gaurus',cat:'Mammal'}],
+  I:[{name:'Indian Peacock',sci:'Pavo cristatus',cat:'National Bird'},{name:'Indian Roller',sci:'Coracias benghalensis',cat:'Bird'},{name:'Indian Rhino',sci:'Rhinoceros unicornis',cat:'Mammal'}],
+  J:[{name:'Jamun',sci:'Syzygium cumini',cat:'Deciduous'},{name:'Jungle Cat',sci:'Felis chaus',cat:'Mammal'}],
+  K:[{name:'Kadamba',sci:'Neolamarckia cadamba',cat:'Sacred Tree'},{name:'King Cobra',sci:'Ophiophagus hannah',cat:'Reptile'},{name:'Koel',sci:'Eudynamys scolopaceus',cat:'Bird'}],
+  M:[{name:'Mango',sci:'Mangifera indica',cat:'National Fruit Tree'},{name:'Mahua',sci:'Madhuca longifolia',cat:'Deciduous'},{name:'Mugger Crocodile',sci:'Crocodylus palustris',cat:'Reptile'}],
+  N:[{name:'Neem',sci:'Azadirachta indica',cat:'Medicinal Tree'},{name:'Nilgai',sci:'Boselaphus tragocamelus',cat:'Mammal'}],
+  P:[{name:'Peepal',sci:'Ficus religiosa',cat:'Sacred Tree'},{name:'Palash',sci:'Butea monosperma',cat:'Deciduous'},{name:'Painted Stork',sci:'Mycteria leucocephala',cat:'Bird'}],
+  R:[{name:'Rain Tree',sci:'Albizia saman',cat:'Tropical Tree'},{name:'Ruddy Mongoose',sci:'Herpestes smithii',cat:'Mammal'}],
+  S:[{name:'Sal Tree',sci:'Shorea robusta',cat:'Deciduous'},{name:'Snow Leopard',sci:'Panthera uncia',cat:'Mammal'},{name:'Siberian Crane',sci:'Leucogeranus leucogeranus',cat:'Migratory Bird'}],
+  T:[{name:'Teak',sci:'Tectona grandis',cat:'Deciduous'},{name:'Tamarind',sci:'Tamarindus indica',cat:'Deciduous'},{name:'Tiger',sci:'Panthera tigris',cat:'Mammal'}],
+};
+
+function setLetter(l, el) {
+  document.querySelectorAll('.az-letter').forEach(a => a.classList.remove('active'));
+  el.classList.add('active');
+  const results = document.getElementById('azResults');
+  const data = azData[l] || [];
+  if(!data.length){ results.innerHTML = '<div style="grid-column:1/-1;padding:2rem;color:rgba(245,240,230,.35);font-size:.9rem;font-weight:300;">No entries yet for this letter — check back soon.</div>'; return; }
+  results.innerHTML = data.map(d => `
+    <div class="az-item">
+      <div class="az-item-name">${d.name}</div>
+      <div class="az-item-sci">${d.sci}</div>
+      <div class="az-item-cat">${d.cat}</div>
+    </div>`).join('');
+}
+
+// Default to 'B'
+window.addEventListener('DOMContentLoaded', () => {
+  const bEl = azGrid.children[1];
+  setLetter('B', bEl);
+});
+
+// ── Floating particles
+const particlesEl = document.getElementById('particles');
+for(let i = 0; i < 18; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  const x = Math.random() * 100, delay = Math.random() * 10, dur = 10 + Math.random() * 12;
+  const tx = (Math.random() - .5) * 60;
+  p.style.cssText = `left:${x}%;bottom:${10 + Math.random()*30}%;--d:${dur}s;--delay:-${delay}s;--x:${tx}px`;
+  particlesEl.appendChild(p);
+}
+
+// ── Modal
+function openModal(){ document.getElementById('modal').classList.add('show'); document.body.style.overflow='hidden'; }
+function closeModal(){ document.getElementById('modal').classList.remove('show'); document.body.style.overflow=''; }
+document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+function modalSubmit(){
+  const btn = document.getElementById('mBtn');
+  btn.textContent = '✓ Welcome to Vanaspati!';
+  btn.style.background = '#2e6040';
+  setTimeout(() => { closeModal(); btn.textContent = 'Subscribe — It\'s Free'; btn.style.background=''; }, 2000);
+}
+
+// ── Newsletter
+function nlSubscribe(){
+  const email = document.getElementById('nlEmail');
+  const btn = document.getElementById('nlBtn');
+  if(!email.value.includes('@')){ email.style.borderColor='#b55c2a'; return; }
+  btn.textContent = '✓ Subscribed!';
+  btn.style.background = '#4a8a5a';
+  email.value = '';
+  setTimeout(() => { btn.textContent='Subscribe'; btn.style.background=''; }, 3000);
+}
+</script>
+</body>
+</html>
