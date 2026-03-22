@@ -1,13 +1,14 @@
 // ═══════════════════════════════════════════════════════
-// ROOTS & ROARS — App v6
-// Cards: square photo top, name + sci below, no overlays
-// Photos: 3-step fallback (sci → genus+species → common name)
+// ROOTS & ROARS — App v7
+// Hero: animalia.bio-style with animal slider
+// Cards: square photo top, name below, no overlays
+// Photos: 3-step fallback for max coverage
 // ═══════════════════════════════════════════════════════
 
 // ── HEADER SCROLL ────────────────────────────────────
 const hdr = document.getElementById('hdr');
 window.addEventListener('scroll', () => {
-  hdr.classList.toggle('solid', window.scrollY > 50);
+  hdr.classList.toggle('solid', window.scrollY > 80);
   const pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
   document.getElementById('prog').style.width = Math.min(pct, 100) + '%';
 }, { passive: true });
@@ -17,8 +18,49 @@ const io = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); } });
 }, { threshold: 0.05 });
 document.querySelectorAll('.rv').forEach(el => io.observe(el));
-
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+// ── HERO ANIMAL SLIDER ────────────────────────────────
+// Cycles through featured species — like animalia.bio's 01/06 indicator
+const HERO_SLIDES = [
+  { id:'tiger',       label:'Bengal Tiger',     img:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Tiger_in_Ranthambhore.jpg/1280px-Tiger_in_Ranthambhore.jpg' },
+  { id:'snowleopard', label:'Snow Leopard',      img:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Schneeleopard-schneeleopard.jpg/1280px-Schneeleopard-schneeleopard.jpg' },
+  { id:'elephant',    label:'Asian Elephant',    img:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Above_Gotland_-_Asian_elephant_at_Pinnawala_Elephant_Orphanage.jpg/1280px-Above_Gotland_-_Asian_elephant_at_Pinnawala_Elephant_Orphanage.jpg' },
+  { id:'peacock',     label:'Indian Peacock',    img:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Indian_Peacock_DSC_0612.jpg/1280px-Indian_Peacock_DSC_0612.jpg' },
+  { id:'gharial',     label:'Gharial',           img:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Female_gharial_%28Gavialis_gangeticus%29.jpg/1280px-Female_gharial_%28Gavialis_gangeticus%29.jpg' },
+  { id:'kingcobra',   label:'King Cobra',        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Ophiophagus_hannah_in_Kaeng_Krachan.jpg/1280px-Ophiophagus_hannah_in_Kaeng_Krachan.jpg' },
+];
+
+let heroIdx = 0;
+let heroAuto;
+
+function heroSlide(dir) {
+  heroIdx = (heroIdx + dir + HERO_SLIDES.length) % HERO_SLIDES.length;
+  updateHeroSlide();
+  resetHeroAuto();
+}
+
+function updateHeroSlide() {
+  const slide = HERO_SLIDES[heroIdx];
+  const img = document.getElementById('heroAnimalImg');
+  const count = document.getElementById('slideCount');
+  const label = document.getElementById('slideLabel');
+  if (img) {
+    img.style.opacity = '0';
+    setTimeout(() => {
+      img.src = slide.img;
+      img.alt = slide.label;
+      img.style.opacity = '1';
+    }, 300);
+  }
+  if (count) count.textContent = String(heroIdx + 1).padStart(2,'0') + ' / ' + String(HERO_SLIDES.length).padStart(2,'0');
+  if (label) label.textContent = slide.label;
+}
+
+function resetHeroAuto() {
+  clearInterval(heroAuto);
+  heroAuto = setInterval(() => heroSlide(1), 5000);
+}
 
 // ── WIKIPEDIA PHOTO CACHE ─────────────────────────────
 const wikiCache = {};
@@ -38,7 +80,7 @@ function extractPhoto(d) {
   return null;
 }
 
-// Try sci name, then genus+species (drop subspecies), then common name
+// 3-step fallback: full sci → genus+species → common name
 async function getWikiData(sciName, commonName) {
   const key = (sciName || commonName).toLowerCase();
   if (wikiCache[key] !== undefined) return wikiCache[key];
@@ -58,7 +100,7 @@ async function getWikiData(sciName, commonName) {
       const url = d.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent((sciName||commonName).replace(/ /g,'_'))}`;
       result = { photo, extract, url };
       if (photo) break;
-    } catch { /* next */ }
+    } catch { /* try next */ }
   }
 
   wikiCache[key] = result;
@@ -69,41 +111,22 @@ async function prefetchBatch(items) {
   await Promise.allSettled(items.map(ws => getWikiData(ws.sci || ws.name, ws.name)));
 }
 
-// ── MOSAIC ────────────────────────────────────────────
-function buildMosaic() {
-  const grid = document.getElementById('mosaic');
-  if (!grid) return;
-  grid.innerHTML = MOSAIC.map(m => {
-    const s = SPECIES[m.id];
-    if (!s) return '';
-    return `<div class="mc ${m.span}" onclick="openSpecies('${s.id}')">
-      <img src="${s.photo}" alt="${s.name}" loading="lazy" onerror="this.style.opacity='0'">
-      <div class="mc-lbl">
-        <div class="mc-name">${s.name}</div>
-        <span class="mc-badge b${s.status}">${s.status}</span>
-      </div>
-    </div>`;
-  }).join('');
-}
-
 // ── TICKER ────────────────────────────────────────────
 function buildTicker() {
   const track = document.getElementById('tickerTrack');
   if (!track) return;
   const items = [...TICKER_FACTS, ...TICKER_FACTS].map(f =>
-    `<span class="t-item"><span style="color:var(--green-d);margin-right:.45rem">◆</span>${f}</span>`).join('');
+    `<span class="t-item"><span style="color:var(--green-d);margin-right:.42rem">◆</span>${f}</span>`).join('');
   track.innerHTML = items;
 }
 
-// ── STATUS ────────────────────────────────────────────
+// ── STATUS LABELS ─────────────────────────────────────
 const STATUS_NAMES = {
   LC:'Least Concern', NT:'Near Threatened', VU:'Vulnerable',
   EN:'Endangered', CR:'Critically Endangered', DD:'Data Deficient', NE:'Not Evaluated'
 };
 
-// ── CARD — animalia.bio style ──────────────────────────
-// Square photo on top. Zero text on photo. Zero gradient overlay.
-// Species name + italic sci name sit cleanly below in the card body.
+// ── CARD — photo top, text below, zero overlay ─────────
 function makeCard(name, sci, status, cat, photo, icon, id, isWiki) {
   const onclick = isWiki
     ? `openWikiSpecies('${esc(name)}','${esc(sci)}','${esc(cat)}','${status}','${icon||'🐾'}')`
@@ -111,10 +134,8 @@ function makeCard(name, sci, status, cat, photo, icon, id, isWiki) {
 
   return `<div class="sp-card" onclick="${onclick}">
     <div class="sp-photo">
-      ${photo
-        ? `<img class="sp-img" src="${photo}" alt="${esc(name)}" loading="lazy"
-             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-        : ''}
+      ${photo ? `<img class="sp-img" src="${photo}" alt="${esc(name)}" loading="lazy"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
       <div class="sp-no-photo"${photo ? ' style="display:none"' : ''}>${icon||'🐾'}</div>
       <span class="sp-status b${status}">${STATUS_NAMES[status]||status}</span>
     </div>
@@ -203,7 +224,6 @@ async function loadWikiSpecies() {
   if (wrap) wrap.style.display = wikiOffset < wikiItems.length ? 'block' : 'none';
 }
 
-// ── FILTER TABS ───────────────────────────────────────
 function setFilter(cat, btn) {
   document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
   if (btn) btn.classList.add('active');
@@ -232,8 +252,7 @@ function buildAZGrid() {
   const grid = document.getElementById('azGrid');
   if (!grid) return;
   grid.innerHTML = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l =>
-    `<button class="az-btn" id="az-${l}" onclick="showAZ('${l}',this)">${l}</button>`
-  ).join('');
+    `<button class="az-btn" id="az-${l}" onclick="showAZ('${l}',this)">${l}</button>`).join('');
 }
 
 function showAZ(l, btn) {
@@ -252,10 +271,10 @@ function showAZ(l, btn) {
     ? items.map(it => `<button class="az-item" onclick="${it.id
         ? `openSpecies('${it.id}')`
         : `openWikiSpecies('${esc(it.n)}','${esc(it.sci||'')}','wildlife','${it.status||'LC'}','🐾')`}">
-          <div class="az-item-n">${it.n}</div>
-          <div class="az-item-s">${it.sci||''}</div>
-          <span class="az-item-t">${it.cat||''}</span>
-        </button>`).join('')
+        <div class="az-item-n">${it.n}</div>
+        <div class="az-item-s">${it.sci||''}</div>
+        <span class="az-item-t">${it.cat||''}</span>
+      </button>`).join('')
     : `<div class="az-item"><div class="az-item-n" style="color:var(--ink3)">No entries for "${l}"</div></div>`;
   results.style.display = 'grid';
 }
@@ -365,51 +384,41 @@ async function loadMoreCat(cat) {
   const batch = wikiItems.slice(catOffset, catOffset + WIKI_PAGE);
   if (!batch.length) return;
   catOffset += batch.length;
-
   const btn = document.getElementById('catLoadBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
-
   const skelIds = batch.map((_,i) => `csk-m-${Date.now()}-${i}`);
   skelIds.forEach(sid => {
     const d = document.createElement('div'); d.id = sid; d.className = 'sp-skel'; grid.appendChild(d);
   });
-
   await prefetchBatch(batch);
   batch.forEach((ws,i) => {
     const cached = wikiCache[(ws.sci||ws.name).toLowerCase()];
     const el = document.getElementById(skelIds[i]);
     if (el) el.outerHTML = makeCard(ws.name,ws.sci,ws.status,ws.cat,cached?.photo||null,ws.icon||'🐾',slugify(ws.name),true);
   });
-
   const lm = document.getElementById('catLoadMore');
   if (btn)  { btn.disabled = false; btn.textContent = `Load more ${cat} →`; }
   if (lm) lm.style.display = catOffset < wikiItems.length ? 'block' : 'none';
 }
 
-// ── VIEW MANAGER ──────────────────────────────────────
+// ── VIEW / MODAL ──────────────────────────────────────
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + name)?.classList.add('active');
   window.scrollTo({ top:0, behavior:'instant' });
 }
-
-// ── MODAL ─────────────────────────────────────────────
 function openModal()  { document.getElementById('modal').classList.add('show'); }
 function closeModal() { document.getElementById('modal').classList.remove('show'); }
 function modalSub() {
   const b = document.getElementById('mBtn');
-  b.textContent = '✓ Subscribed! Welcome to Roots & Roars';
-  b.style.background = 'var(--green-l)';
+  b.textContent = '✓ Subscribed! Welcome.';
+  b.style.background = '#5bc672';
   setTimeout(closeModal, 1800);
 }
 function nlSub() {
   const el = document.getElementById('nlEmail');
   if (!el?.value.includes('@')) { if(el) el.style.borderColor='var(--rose)'; return; }
   el.value = ''; el.placeholder = '✓ Subscribed — thank you!';
-}
-function toggleMode() {
-  const b = document.getElementById('modeBtn');
-  b.textContent = b.textContent === '☀️' ? '🌙' : '☀️';
 }
 
 // ── URL DEEP LINK ─────────────────────────────────────
@@ -420,13 +429,16 @@ function handleURLParams() {
 
 // ── INIT ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  buildMosaic();
   buildTicker();
   buildSpeciesGrid('all');
   buildCatGrid();
   buildAZGrid();
   handleURLParams();
 
+  // Hero slider — auto-advance every 5s
+  resetHeroAuto();
+
+  // Hero search
   document.querySelector('.hero-sb')?.addEventListener('click', () => {
     const v = document.getElementById('heroQ')?.value;
     if (v) doSearch(v, 'heroSug');
