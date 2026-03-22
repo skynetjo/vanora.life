@@ -1,321 +1,481 @@
 // ═══════════════════════════════════════════════════════
 // ROOTS & ROARS — Main Application
+// Wikipedia API integration for automatic photo + data loading
 // ═══════════════════════════════════════════════════════
 
-// ── Custom Cursor
-const curDot = document.getElementById('curDot');
-const curRing = document.getElementById('curRing');
-const curText = document.getElementById('curText');
-
-let mouseX = 0, mouseY = 0, ringX = 0, ringY = 0;
+// ── CURSOR ───────────────────────────────────────────
+const cur = document.getElementById('cur');
+const curR = document.getElementById('curRing');
+const curL = document.getElementById('curLabel');
+let mx = 0, my = 0, rx = 0, ry = 0;
 
 document.addEventListener('mousemove', e => {
-  mouseX = e.clientX; mouseY = e.clientY;
-  curDot.style.left = mouseX + 'px';
-  curDot.style.top = mouseY + 'px';
+  mx = e.clientX; my = e.clientY;
+  cur.style.left = mx + 'px'; cur.style.top = my + 'px';
+  // Label
+  const el = document.elementFromPoint(mx, my);
+  const lbl = el?.closest('[data-cursor]')?.dataset.cursor;
+  if (lbl) { curL.textContent = lbl; curL.classList.add('show'); } else { curL.classList.remove('show'); }
+  curL.style.left = mx + 'px'; curL.style.top = my + 'px';
 });
+(function animCursor() {
+  rx += (mx - rx) * .12; ry += (my - ry) * .12;
+  curR.style.left = rx + 'px'; curR.style.top = ry + 'px';
+  requestAnimationFrame(animCursor);
+})();
+document.addEventListener('mousedown', () => { cur.style.transform = 'translate(-50%,-50%) scale(1.8)'; });
+document.addEventListener('mouseup', () => { cur.style.transform = 'translate(-50%,-50%) scale(1)'; });
 
-// Smooth ring follow
-function animateRing() {
-  ringX += (mouseX - ringX) * 0.12;
-  ringY += (mouseY - ringY) * 0.12;
-  curRing.style.left = ringX + 'px';
-  curRing.style.top = ringY + 'px';
-  curText.style.left = ringX + 'px';
-  curText.style.top = ringY + 'px';
-  requestAnimationFrame(animateRing);
-}
-animateRing();
-
-document.addEventListener('click', () => {
-  curDot.style.transform = 'translate(-50%,-50%) scale(2.5)';
-  setTimeout(() => curDot.style.transform = 'translate(-50%,-50%) scale(1)', 180);
-});
-
-// Hoverable elements cursor
-document.addEventListener('mouseover', e => {
-  const el = e.target.closest('[data-cursor]');
-  if (el) {
-    curText.textContent = el.dataset.cursor;
-    curText.classList.add('show');
-    curRing.style.width = '48px';
-    curRing.style.height = '48px';
-  } else {
-    curText.classList.remove('show');
-    curRing.style.width = '28px';
-    curRing.style.height = '28px';
-  }
-});
-
-// ── Header scroll
+// ── HEADER ───────────────────────────────────────────
 const hdr = document.getElementById('hdr');
 window.addEventListener('scroll', () => {
-  hdr.classList.toggle('solid', window.scrollY > 60);
-  // Progress bar
+  hdr.classList.toggle('solid', window.scrollY > 50);
   const prog = document.getElementById('prog');
   const pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
   prog.style.width = Math.min(pct, 100) + '%';
 });
 
-// ── Dark/Light (already dark by default)
-function toggleMode() {
-  document.body.classList.toggle('light-mode');
-  document.getElementById('modeBtn').textContent =
-    document.body.classList.contains('light-mode') ? '🌙' : '☀️';
+// ── REVEAL ───────────────────────────────────────────
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); } });
+}, { threshold: 0.06 });
+document.querySelectorAll('.rv').forEach(el => io.observe(el));
+
+// ESC closes panel
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+// ── WIKIPEDIA PHOTO CACHE ─────────────────────────────
+const wikiPhotoCache = {};
+
+async function fetchWikiPhoto(searchTerm) {
+  if (wikiPhotoCache[searchTerm]) return wikiPhotoCache[searchTerm];
+  try {
+    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm.replace(/ /g,'_'))}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    const data = await res.json();
+    const photo = data.thumbnail?.source?.replace(/\/\d+px-/, '/400px-') || null;
+    wikiPhotoCache[searchTerm] = { photo, extract: data.extract?.substring(0,200) || '' };
+    return wikiPhotoCache[searchTerm];
+  } catch(e) { return null; }
 }
 
-// ── Scroll reveal
-const rvObs = new IntersectionObserver(entries => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      e.target.classList.add('on');
-      rvObs.unobserve(e.target);
-    }
-  });
-}, { threshold: 0.06 });
-document.querySelectorAll('.rv').forEach(el => rvObs.observe(el));
-
-// ── Build hero mosaic
+// ── BUILD MOSAIC ──────────────────────────────────────
 function buildMosaic() {
-  const mosaic = document.getElementById('heroMosaic');
-  mosaic.innerHTML = MOSAIC_SPECIES.map(m => {
+  const grid = document.getElementById('mosaic');
+  if (!grid) return;
+  grid.innerHTML = MOSAIC.map(m => {
     const s = SPECIES[m.id];
     if (!s) return '';
-    return `
-      <div class="mosaic-cell ${m.span}" onclick="openSpecies('${s.id}')" data-cursor="Explore">
-        <img class="mosaic-img" src="${s.photo}" alt="${s.name}"
-             onerror="this.style.display='none';this.parentElement.querySelector('.mosaic-emoji').style.display='flex';">
-        <div class="mosaic-emoji" style="display:none;font-size:5rem;align-items:center;justify-content:center;height:100%;background:${s.heroGrad};">${s.icon}</div>
-        <div class="mosaic-label">
-          <div class="mosaic-name">${s.name}</div>
-          <span class="mosaic-status s-${s.status}">${s.statusLabel}</span>
-        </div>
-      </div>`;
+    return `<div class="mc ${m.span}" onclick="openSpecies('${s.id}')" data-cursor="View">
+      ${s.photo ? `<img src="${s.photo}" alt="${s.name}" loading="lazy" onerror="this.style.display='none'">` : ''}
+      <div class="mc-lbl">
+        <div class="mc-name">${s.name}</div>
+        <span class="mc-badge b${s.status}">${s.status}</span>
+      </div>
+    </div>`;
   }).join('');
 }
-buildMosaic();
 
-// ── Ticker
+// ── BUILD TICKER ──────────────────────────────────────
 function buildTicker() {
   const track = document.getElementById('tickerTrack');
-  const items = TICKER_FACTS.map(f =>
-    `<div class="ticker-item"><span class="ticker-sep">◆</span> ${f} </div>`
-  ).join('');
-  track.innerHTML = items + items; // duplicate for seamless loop
+  if (!track) return;
+  const items = [...TICKER_FACTS, ...TICKER_FACTS].map(f =>
+    `<span class="t-item"><span class="t-sep">◆</span>${f}</span>`).join('');
+  track.innerHTML = items;
 }
-buildTicker();
 
-// ── Filter tabs and species grid
-function buildSpeciesGrid(filter = 'all') {
+// ── STATUS BADGE HTML ─────────────────────────────────
+function statusBadge(code) {
+  const labels = { LC:'LC', NT:'Near Threatened', VU:'Vulnerable', EN:'Endangered', CR:'Critically Endangered', DD:'DD', NE:'NE' };
+  return `<span class="sp-status b${code}">${labels[code] || code}</span>`;
+}
+
+// ── BUILD SPECIES GRID ────────────────────────────────
+let currentFilter = 'all';
+let wikiOffset = 0;
+const WIKI_PAGE_SIZE = 16;
+
+function buildSpeciesGrid(filter) {
+  currentFilter = filter;
+  wikiOffset = 0;
   const grid = document.getElementById('speciesGrid');
-  const allSpecies = Object.values(SPECIES);
-  const filtered = filter === 'all' ? allSpecies
-    : filter === 'endangered' ? allSpecies.filter(s => ['EN','CR','VU'].includes(s.status))
-    : allSpecies.filter(s => s.category === filter);
+  if (!grid) return;
 
-  grid.innerHTML = filtered.map(s => `
-    <div class="sp-card" onclick="openSpecies('${s.id}')" data-cursor="Explore">
-      <img class="sp-img" src="${s.photo}" alt="${s.name}"
-           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-      <div class="sp-emoji-bg" style="display:none;background:${s.heroGrad};">${s.icon}</div>
-      <div class="sp-card-body">
-        <span class="sp-card-status s-${s.status}">${s.statusLabel}</span>
-        <div class="sp-name">${s.name}</div>
-        <div class="sp-sci">${s.sci}</div>
-        <div class="sp-explore">Explore full profile →</div>
-      </div>
-    </div>`).join('');
+  // Featured deep profiles
+  let featured = Object.values(SPECIES);
+  if (filter === 'endangered') {
+    featured = featured.filter(s => ['EN','CR','VU'].includes(s.status));
+  } else if (filter !== 'all') {
+    featured = featured.filter(s => s.category === filter);
+  }
 
-  // Re-attach cursor data
-  grid.querySelectorAll('[data-cursor]').forEach(el => {
-    // handled via event delegation above
+  // Render featured with real photos
+  grid.innerHTML = featured.map(s => makeCard(s.name, s.sci, s.status, s.category, s.photo, s.icon, s.id, false)).join('');
+
+  // Add Wikipedia species as skeleton cards, then load photos
+  const wikiFiltered = getWikiFiltered(filter);
+  wikiOffset = Math.min(WIKI_PAGE_SIZE, wikiFiltered.length);
+
+  wikiFiltered.slice(0, WIKI_PAGE_SIZE).forEach((ws, i) => {
+    const skId = `skel-${i}`;
+    const div = document.createElement('div');
+    div.id = skId;
+    div.className = 'sp-skel';
+    grid.appendChild(div);
+
+    // Load photo async
+    loadWikiCard(ws, skId);
   });
-}
-buildSpeciesGrid();
 
+  const loadBtn = document.getElementById('loadMoreBtn');
+  const loadWrap = document.getElementById('loadMoreWrap');
+  if (loadBtn && loadWrap) {
+    if (wikiOffset < wikiFiltered.length) {
+      loadWrap.style.display = 'block';
+      loadBtn.disabled = false;
+      loadBtn.textContent = `📡 Load ${Math.min(WIKI_PAGE_SIZE, wikiFiltered.length - wikiOffset)} more species →`;
+    } else {
+      loadWrap.style.display = 'none';
+    }
+  }
+}
+
+function getWikiFiltered(filter) {
+  if (filter === 'all') return WIKI_SPECIES;
+  if (filter === 'endangered') return WIKI_SPECIES.filter(w => ['EN','CR','VU'].includes(w.status));
+  return WIKI_SPECIES.filter(w => w.cat === filter);
+}
+
+async function loadWikiCard(ws, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const data = await fetchWikiPhoto(ws.sci || ws.name);
+  const photo = data?.photo || null;
+  const html = makeCard(ws.name, ws.sci, ws.status, ws.cat, photo, ws.icon || '🐾', slugify(ws.name), true);
+  container.outerHTML = html;
+  // Store in cache for onclick
+  ws._wikiLoaded = true;
+}
+
+function loadWikiSpecies() {
+  const grid = document.getElementById('speciesGrid');
+  if (!grid) return;
+  const wikiFiltered = getWikiFiltered(currentFilter);
+  const nextBatch = wikiFiltered.slice(wikiOffset, wikiOffset + WIKI_PAGE_SIZE);
+  wikiOffset += nextBatch.length;
+
+  const btn = document.getElementById('loadMoreBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+
+  nextBatch.forEach((ws, i) => {
+    const skId = `skel-more-${Date.now()}-${i}`;
+    const div = document.createElement('div');
+    div.id = skId;
+    div.className = 'sp-skel';
+    grid.appendChild(div);
+    loadWikiCard(ws, skId);
+  });
+
+  setTimeout(() => {
+    const loadWrap = document.getElementById('loadMoreWrap');
+    const btn2 = document.getElementById('loadMoreBtn');
+    if (wikiOffset < wikiFiltered.length) {
+      if (btn2) { btn2.disabled = false; btn2.textContent = `📡 Load ${Math.min(WIKI_PAGE_SIZE, wikiFiltered.length - wikiOffset)} more species →`; }
+    } else {
+      if (loadWrap) loadWrap.style.display = 'none';
+    }
+  }, 2000);
+}
+
+function makeCard(name, sci, status, cat, photo, icon, id, isWiki) {
+  const onclick = isWiki
+    ? `openWikiSpecies('${esc(name)}','${esc(sci)}','${esc(cat)}','${status}','${icon}')`
+    : `openSpecies('${id}')`;
+  return `<div class="sp-card" onclick="${onclick}" data-cursor="Explore">
+    ${photo
+      ? `<img class="sp-img" src="${photo}" alt="${esc(name)}" loading="lazy" onerror="this.nextElementSibling.style.display='flex';this.style.display='none'">`
+      : ''}
+    <div class="sp-emoji" style="${photo ? 'display:none' : ''}">${icon}</div>
+    ${isWiki ? '<div class="sp-w-badge">W</div>' : ''}
+    <div class="sp-body">
+      ${statusBadge(status)}
+      <div class="sp-name">${name}</div>
+      <div class="sp-sci">${sci}</div>
+      <div class="sp-cta">${isWiki ? 'Wikipedia' : 'Full Profile'} →</div>
+    </div>
+  </div>`;
+}
+
+function esc(str) {
+  return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// ── FILTER TABS ───────────────────────────────────────
 function setFilter(cat, btn) {
   document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   buildSpeciesGrid(cat);
 }
 
-// ── Collections
-function buildCollections() {
-  const grid = document.getElementById('collGrid');
-  grid.innerHTML = COLLECTIONS.map((c, i) => `
-    <div class="coll-card" onclick="filterByCat('${c.cat}')" data-cursor="View all">
-      <div class="coll-bg">
-        <img class="coll-img" src="${c.photo}" alt="${c.name}"
-             onerror="this.style.display='none';">
-      </div>
-      <div class="coll-arrow">→</div>
-      <div class="coll-body">
-        <div class="coll-count">${c.count}</div>
-        <div class="coll-name">${c.name}</div>
+// ── CATEGORY GRID ─────────────────────────────────────
+function buildCatGrid() {
+  const grid = document.getElementById('catGrid');
+  if (!grid) return;
+  grid.innerHTML = CAT_SECTIONS.map(c => `
+    <div class="cat-card" onclick="showCatPage('${c.cat}')" data-cursor="Browse">
+      <img class="cat-img" src="${c.photo}" alt="${c.name}" loading="lazy" onerror="this.style.display='none'">
+      <div class="cat-arrow">→</div>
+      <div class="cat-body">
+        <div class="cat-count">${c.count}</div>
+        <div class="cat-name">${c.name}</div>
       </div>
     </div>`).join('');
 }
-buildCollections();
 
-function filterByCat(cat) {
-  // Scroll to grid and filter
-  document.getElementById('gridSection').scrollIntoView({ behavior: 'smooth' });
-  setTimeout(() => {
-    const tabs = document.querySelectorAll('.ftab');
-    tabs.forEach(t => {
-      if (t.dataset.cat === cat) {
-        t.classList.add('active');
-        setFilter(cat, t);
-      } else {
-        t.classList.remove('active');
-      }
-    });
-  }, 600);
-}
-
-// ── A-Z Browse
+// ── A-Z ───────────────────────────────────────────────
+let activeAZ = null;
 function buildAZGrid() {
   const grid = document.getElementById('azGrid');
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => {
-    const btn = document.createElement('button');
-    btn.className = 'az-btn';
-    btn.textContent = l;
-    btn.onclick = () => showAZ(l, btn);
-    grid.appendChild(btn);
-  });
+  if (!grid) return;
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  grid.innerHTML = letters.map(l =>
+    `<button class="az-btn" id="az-${l}" onclick="showAZ('${l}',this)">${l}</button>`
+  ).join('');
 }
-buildAZGrid();
 
 function showAZ(l, btn) {
-  document.querySelectorAll('.az-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const data = AZ_DATA[l] || [];
   const results = document.getElementById('azResults');
-  results.style.display = 'grid';
-  results.innerHTML = data.length
-    ? data.map(d => `
-        <button class="az-item" onclick="${d.id ? `openSpecies('${d.id}')` : ''}" style="${d.id ? '' : 'cursor:default;'}">
-          <div class="az-item-name">${d.n}</div>
-          <div class="az-item-sci">${d.sci}</div>
-          <div class="az-item-tag">${d.cat}</div>
-          ${d.id ? '<div class="az-item-link">View full profile →</div>' : ''}
-        </button>`).join('')
-    : '<div style="padding:2rem;color:var(--ink3);font-size:0.88rem;">More species coming soon for this letter.</div>';
-}
-
-// ── Search
-function handleSearch(query, targetId) {
-  const target = document.getElementById(targetId);
-  if (!target) return;
-  if (!query || query.length < 2) { target.classList.remove('show'); return; }
-
-  const q = query.toLowerCase();
-  const results = Object.values(SPECIES).filter(s =>
-    s.name.toLowerCase().includes(q) || s.sci.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
-  );
-
-  if (!results.length) {
-    target.innerHTML = '<div class="suggest-item" style="padding:1rem;color:var(--ink3);font-size:0.85rem;">No species found — try another name</div>';
-    target.classList.add('show');
+  if (!results) return;
+  if (activeAZ === l) {
+    results.style.display = 'none'; activeAZ = null;
+    document.querySelectorAll('.az-btn').forEach(b => b.classList.remove('active'));
     return;
   }
+  activeAZ = l;
+  document.querySelectorAll('.az-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
 
-  target.innerHTML = results.slice(0, 6).map(s => `
-    <div class="suggest-item" onclick="openSpecies('${s.id}');document.getElementById('${targetId}').classList.remove('show');">
-      <div class="si-thumb" style="background:${s.heroGrad};">${s.icon}</div>
-      <div>
-        <div class="si-name">${s.name}</div>
-        <div class="si-sci">${s.sci}</div>
-      </div>
-      <div class="si-tag">${s.category}</div>
-    </div>`).join('');
-  target.classList.add('show');
+  const items = AZ_DATA[l] || [];
+  if (!items.length) {
+    results.innerHTML = `<div class="az-item"><div class="az-item-n">No entries yet for "${l}"</div></div>`;
+  } else {
+    results.innerHTML = items.map(it => `
+      <button class="az-item" onclick="${it.id ? `openSpecies('${it.id}')` : `openWikiSpecies('${esc(it.n)}','${esc(it.sci || '')}','${it.cat?.toLowerCase() || 'wildlife'}','${it.status || 'LC'}','🐾')`}">
+        <div class="az-item-n">${it.n}</div>
+        <div class="az-item-s">${it.sci || ''}</div>
+        <span class="az-item-t">${it.cat || ''}</span>
+        ${!it.id ? `<span class="az-item-lnk">Wikipedia →</span>` : ''}
+      </button>`).join('');
+  }
+  results.style.display = 'grid';
+}
+
+// ── SEARCH ────────────────────────────────────────────
+let searchTimer;
+function doSearch(query, boxId) {
+  clearTimeout(searchTimer);
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  if (query.length < 2) { box.classList.remove('show'); return; }
+
+  searchTimer = setTimeout(async () => {
+    // Local matches (deep profiles)
+    const local = Object.values(SPECIES).filter(s =>
+      s.name.toLowerCase().includes(query.toLowerCase()) ||
+      s.sci.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 4);
+
+    // Wiki species matches
+    const wikiMatches = WIKI_SPECIES.filter(w =>
+      w.name.toLowerCase().includes(query.toLowerCase()) ||
+      (w.sci || '').toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 4);
+
+    let html = '';
+    local.forEach(s => {
+      html += `<div class="sug-item" onclick="openSpecies('${s.id}');document.getElementById('${boxId}').classList.remove('show');">
+        <div class="sug-thumb">${s.photo ? `<img src="${s.photo}" alt="">` : s.icon}</div>
+        <div><div class="sug-name">${s.name}</div><div class="sug-sci">${s.sci}</div></div>
+        <span class="sug-tag">Profile</span>
+      </div>`;
+    });
+    wikiMatches.slice(0, 6 - local.length).forEach(w => {
+      html += `<div class="sug-item sug-wiki" onclick="openWikiSpecies('${esc(w.name)}','${esc(w.sci)}','${w.cat}','${w.status}','${w.icon||'🐾'}');document.getElementById('${boxId}').classList.remove('show');">
+        <div class="sug-thumb">${w.icon || '🐾'}</div>
+        <div><div class="sug-name">${w.name}</div><div class="sug-sci">${w.sci}</div></div>
+        <span class="sug-tag">W</span>
+      </div>`;
+    });
+
+    // Also search Wikipedia API for unrecognized queries
+    if (!html) {
+      try {
+        const res = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=5&namespace=0&format=json&origin=*`);
+        const [, titles, , urls] = await res.json();
+        titles.slice(0,4).forEach((t, i) => {
+          html += `<div class="sug-item sug-wiki" onclick="openWikiSpecies('${esc(t)}','','wildlife','LC','🐾');document.getElementById('${boxId}').classList.remove('show');">
+            <div class="sug-thumb">🔍</div>
+            <div><div class="sug-name">${t}</div><div class="sug-sci">From Wikipedia</div></div>
+            <span class="sug-tag">Wiki</span>
+          </div>`;
+        });
+      } catch(e) {}
+    }
+
+    if (!html) html = `<div class="sug-item"><div style="color:var(--ink3);font-size:.8rem;padding:.2rem 0;">No results found for "${query}"</div></div>`;
+    box.innerHTML = html;
+    box.classList.add('show');
+  }, 200);
 }
 
 // Close search on outside click
 document.addEventListener('click', e => {
   if (!e.target.closest('.hdr-search') && !e.target.closest('.hero-search-wrap')) {
-    document.getElementById('hdrSuggest')?.classList.remove('show');
-    document.getElementById('heroSuggest')?.classList.remove('show');
-  }
-  // Close panel on overlay click
-  if (e.target === document.getElementById('panelOverlay')) {
-    closePanel();
+    document.querySelectorAll('.sug-box').forEach(b => b.classList.remove('show'));
   }
 });
 
-// Keyboard: ESC closes panel
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closePanel();
-});
+// ── CATEGORY PAGE ──────────────────────────────────────
+let catPageFilter = 'mammals';
+let catWikiOffset = 0;
 
-// ── Modal
-function openModal() {
-  document.getElementById('modal').classList.add('show');
-  document.body.style.overflow = 'hidden';
+function showCatPage(cat) {
+  catPageFilter = cat;
+  catWikiOffset = 0;
+  showView('category');
+
+  const titles = {
+    mammals: ['Mammals of India', '500+ documented mammal species — from Bengal Tigers to Pangolins'],
+    birds: ['Birds of India', '1,300+ resident and migratory bird species'],
+    reptiles: ['Reptiles of India', '460+ species including crocodilians, snakes, lizards and turtles'],
+    trees: ['Trees of India', '1,200+ native and naturalized tree species'],
+  };
+  const [title, sub] = titles[cat] || [cat, ''];
+  document.getElementById('catPageTitle').textContent = title;
+  document.getElementById('catPageSub').textContent = sub;
+
+  const grid = document.getElementById('catGrid2');
+  grid.innerHTML = '';
+
+  // Featured deep profiles
+  const featured = Object.values(SPECIES).filter(s => s.category === cat);
+  featured.forEach(s => {
+    grid.insertAdjacentHTML('beforeend', makeCard(s.name, s.sci, s.status, s.category, s.photo, s.icon, s.id, false));
+  });
+
+  // Wikipedia species for this category
+  const wikiItems = WIKI_SPECIES.filter(w => w.cat === cat);
+  catWikiOffset = Math.min(WIKI_PAGE_SIZE, wikiItems.length);
+
+  wikiItems.slice(0, WIKI_PAGE_SIZE).forEach((ws, i) => {
+    const skId = `cat-skel-${i}`;
+    const div = document.createElement('div');
+    div.id = skId; div.className = 'sp-skel';
+    grid.appendChild(div);
+    loadWikiCard(ws, skId);
+  });
+
+  const loadMore = document.getElementById('catLoadMore');
+  const catBtn = document.getElementById('catLoadBtn');
+  if (loadMore && catBtn) {
+    if (catWikiOffset < wikiItems.length) {
+      loadMore.style.display = 'block';
+      catBtn.textContent = `Load ${Math.min(WIKI_PAGE_SIZE, wikiItems.length - catWikiOffset)} more ${cat} →`;
+      catBtn.onclick = () => loadMoreCat(cat);
+    } else {
+      loadMore.style.display = 'none';
+    }
+  }
 }
-function closeModal() {
-  document.getElementById('modal').classList.remove('show');
-  document.body.style.overflow = '';
-}
-function modalSub() {
-  const btn = document.getElementById('mBtn');
-  btn.textContent = '✓ Welcome aboard!';
-  btn.style.background = '#3d7a4f';
+
+function loadMoreCat(cat) {
+  const grid = document.getElementById('catGrid2');
+  const wikiItems = WIKI_SPECIES.filter(w => w.cat === cat);
+  const nextBatch = wikiItems.slice(catWikiOffset, catWikiOffset + WIKI_PAGE_SIZE);
+  catWikiOffset += nextBatch.length;
+
+  const btn = document.getElementById('catLoadBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+
+  nextBatch.forEach((ws, i) => {
+    const skId = `cat-more-${Date.now()}-${i}`;
+    const div = document.createElement('div');
+    div.id = skId; div.className = 'sp-skel';
+    grid.appendChild(div);
+    loadWikiCard(ws, skId);
+  });
+
   setTimeout(() => {
-    closeModal();
-    btn.textContent = "Subscribe — It's Free";
-    btn.style.background = '';
+    const btn2 = document.getElementById('catLoadBtn');
+    const lm = document.getElementById('catLoadMore');
+    if (catWikiOffset < wikiItems.length) {
+      if (btn2) { btn2.disabled = false; btn2.textContent = `Load ${Math.min(WIKI_PAGE_SIZE, wikiItems.length - catWikiOffset)} more ${cat} →`; }
+    } else {
+      if (lm) lm.style.display = 'none';
+    }
   }, 2000);
 }
-function nlSub() {
-  const e = document.getElementById('nlEmail');
-  const b = document.querySelector('.nl-btn');
-  if (!e.value.includes('@')) { e.style.border = '1px solid #c0453a'; return; }
-  b.textContent = '✓ Subscribed!';
-  b.style.background = '#2d6a3f';
-  setTimeout(() => { b.textContent = 'Subscribe Free'; b.style.background = ''; e.value = ''; }, 3000);
-}
 
-// Close modal on bg click
-document.getElementById('modal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
-
-// ── Category view
-const catMeta = {
-  mammals: { title: 'Mammals of India', sub: '500+ documented species from tigers to pangolins' },
-  birds: { title: 'Birds of India', sub: '1,300+ resident and migratory species' },
-  reptiles: { title: 'Reptiles of India', sub: '460+ species including crocodilians, snakes and lizards' },
-  trees: { title: 'Trees of India', sub: '1,200+ native and naturalised tree species' },
-  insects: { title: 'Insects & Butterflies of India', sub: 'Over 1,600 documented species' },
-};
-
-function showCategoryView(cat) {
-  const info = catMeta[cat] || { title: 'Species', sub: '' };
-  document.getElementById('catViewTitle').textContent = info.title;
-  document.getElementById('catViewSub').textContent = info.sub;
-
-  const filtered = Object.values(SPECIES).filter(s => s.category === cat);
-  document.getElementById('catSpeciesGrid').innerHTML = filtered.map(s => `
-    <div class="sp-card" onclick="openSpecies('${s.id}')" data-cursor="Explore">
-      <img class="sp-img" src="${s.photo}" alt="${s.name}"
-           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-      <div class="sp-emoji-bg" style="display:none;background:${s.heroGrad};">${s.icon}</div>
-      <div class="sp-card-body">
-        <span class="sp-card-status s-${s.status}">${s.statusLabel}</span>
-        <div class="sp-name">${s.name}</div>
-        <div class="sp-sci">${s.sci}</div>
-        <div class="sp-explore">Explore full profile →</div>
-      </div>
-    </div>`).join('') || '<p style="color:var(--ink3);padding:2rem;">More species coming soon!</p>';
-
-  showView('category');
-}
-
-// ── View manager
+// ── VIEW MANAGER ──────────────────────────────────────
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById('view-' + name).classList.add('active');
-  window.scrollTo(0, 0);
+  const el = document.getElementById('view-' + name);
+  if (el) el.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
+
+// ── MODAL ─────────────────────────────────────────────
+function openModal() { document.getElementById('modal').classList.add('show'); }
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+function modalSub() {
+  const btn = document.getElementById('mBtn');
+  btn.textContent = '✓ Subscribed! Welcome to Roots & Roars';
+  btn.style.background = 'var(--green-l)';
+  setTimeout(closeModal, 1800);
+}
+function nlSub() {
+  const el = document.getElementById('nlEmail');
+  if (!el.value.includes('@')) { el.style.borderColor = 'var(--rose)'; return; }
+  el.value = ''; el.placeholder = '✓ Subscribed! Thank you.';
+}
+function toggleMode() {
+  const btn = document.getElementById('modeBtn');
+  btn.textContent = btn.textContent === '☀️' ? '🌙' : '☀️';
+}
+
+// ── URL PARAMS (deep linking) ──────────────────────────
+function handleURLParams() {
+  const params = new URLSearchParams(window.location.search);
+  const sp = params.get('species');
+  if (sp) setTimeout(() => openSpecies(sp), 500);
+}
+
+// ── INIT ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  buildMosaic();
+  buildTicker();
+  buildSpeciesGrid('all');
+  buildCatGrid();
+  buildAZGrid();
+  handleURLParams();
+
+  // Hero search button
+  const heroSb = document.querySelector('.hero-sb');
+  if (heroSb) {
+    heroSb.addEventListener('click', () => {
+      const q = document.getElementById('heroQ')?.value;
+      if (q) doSearch(q, 'heroSug');
+    });
+    document.getElementById('heroQ')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { doSearch(e.target.value, 'heroSug'); }
+    });
+    // Show suggestions on input
+    document.getElementById('heroQ')?.addEventListener('focus', e => {
+      if (e.target.value.length > 1) document.getElementById('heroSug')?.classList.add('show');
+    });
+    document.getElementById('heroQ')?.addEventListener('blur', () => {
+      setTimeout(() => document.getElementById('heroSug')?.classList.remove('show'), 220);
+    });
+  }
+});
