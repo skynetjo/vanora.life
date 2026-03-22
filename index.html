@@ -20,7 +20,7 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--ink);over
 
 .cursor{position:fixed;width:10px;height:10px;border-radius:50%;background:var(--gold);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform 0.08s,width 0.2s,height 0.2s,background 0.2s;mix-blend-mode:multiply;}
 .cursor-ring{position:fixed;width:30px;height:30px;border-radius:50%;border:1px solid var(--fern);pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:transform 0.18s ease,width 0.3s,height 0.3s;}
-
+ 
 body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");pointer-events:none;z-index:800;opacity:.7;}
 
 header{position:fixed;top:0;left:0;right:0;z-index:700;display:flex;align-items:center;justify-content:space-between;padding:1.4rem 3.5rem;transition:all .4s;}
