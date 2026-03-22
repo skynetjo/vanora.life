@@ -1,10 +1,11 @@
 // ═══════════════════════════════════════════════════════
-// ROOTS & ROARS — Main Application v5.1
-// Key fix: Wikipedia photos pre-fetched before cards render
+// ROOTS & ROARS — Main Application v6
+// Photo fix: tries common name if scientific name has no photo
+// Card redesign: animalia.bio-style (photo top, text below)
 // ═══════════════════════════════════════════════════════
 
 // ── CURSOR ──────────────────────────────────────────
-const cur = document.getElementById('cur');
+const cur  = document.getElementById('cur');
 const curR = document.getElementById('curRing');
 const curL = document.getElementById('curLabel');
 let mx = 0, my = 0, rx = 0, ry = 0;
@@ -43,37 +44,52 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel()
 // ── WIKIPEDIA PHOTO CACHE ─────────────────────────────
 const wikiCache = {};
 
-async function getWikiData(term) {
+async function fetchWikiSummary(searchTerm) {
+  const slug = encodeURIComponent(searchTerm.replace(/ /g, '_'));
+  const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`, {
+    signal: AbortSignal.timeout(8000)
+  });
+  if (!r.ok) throw new Error('not found');
+  return r.json();
+}
+
+function extractPhoto(d) {
+  if (d.thumbnail?.source) return d.thumbnail.source.replace(/\/\d+px-/, '/500px-');
+  if (d.originalimage?.source) return d.originalimage.source;
+  return null;
+}
+
+async function getWikiData(term, commonName) {
   const key = term.toLowerCase();
   if (wikiCache[key] !== undefined) return wikiCache[key];
-  try {
-    const slug = encodeURIComponent(term.replace(/ /g, '_'));
-    const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`, {
-      signal: AbortSignal.timeout(7000)
-    });
-    if (!r.ok) throw new Error('not found');
-    const d = await r.json();
-    let photo = null;
-    if (d.thumbnail?.source) {
-      photo = d.thumbnail.source.replace(/\/\d+px-/, '/500px-');
-    } else if (d.originalimage?.source) {
-      photo = d.originalimage.source;
-    }
-    const result = {
-      photo,
-      extract: d.extract ? d.extract.substring(0, 600) : '',
-      url: d.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${slug}`
-    };
-    wikiCache[key] = result;
-    return result;
-  } catch {
-    wikiCache[key] = null;
-    return null;
+
+  const attempts = [term];
+  // Try genus+species (drop subspecies e.g. "Panthera tigris tigris" → "Panthera tigris")
+  const parts = term.split(' ');
+  if (parts.length === 3) attempts.push(parts[0] + ' ' + parts[1]);
+  // Try common name
+  if (commonName && commonName !== term) attempts.push(commonName);
+
+  let result = null;
+  for (const attempt of attempts) {
+    try {
+      const d = await fetchWikiSummary(attempt);
+      const photo = extractPhoto(d);
+      const extract = d.extract ? d.extract.substring(0, 600) : '';
+      const url = d.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(term.replace(/ /g,'_'))}`;
+      result = { photo, extract, url };
+      if (photo) break; // Got a photo — done
+    } catch { /* try next */ }
   }
+
+  wikiCache[key] = result;
+  return result;
 }
 
 async function prefetchBatch(items) {
-  await Promise.allSettled(items.map(ws => getWikiData(ws.sci || ws.name)));
+  await Promise.allSettled(
+    items.map(ws => getWikiData(ws.sci || ws.name, ws.name))
+  );
 }
 
 // ── MOSAIC ────────────────────────────────────────────
@@ -112,22 +128,28 @@ function statusBadge(code) {
   return `<span class="sp-status b${code}">${STATUS_NAMES[code] || code}</span>`;
 }
 
-// ── CARD BUILDER ──────────────────────────────────────
+// ── CARD BUILDER (animalia.bio style) ─────────────────
+// Photo fills top (4/3), name + sci below, status badge on photo corner
 function makeCard(name, sci, status, cat, photo, icon, id, isWiki) {
   const onclick = isWiki
     ? `openWikiSpecies('${esc(name)}','${esc(sci)}','${esc(cat)}','${status}','${icon || '🐾'}')`
     : `openSpecies('${id}')`;
 
+  const photoHtml = photo
+    ? `<img class="sp-img" src="${photo}" alt="${esc(name)}" loading="lazy"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    : '';
+  const fallbackHtml = `<div class="sp-no-photo" style="${photo ? 'display:none' : ''}">${icon || '🐾'}</div>`;
+
   return `<div class="sp-card" onclick="${onclick}" data-cursor="Explore">
-    ${photo
-      ? `<img class="sp-img" src="${photo}" alt="${esc(name)}" loading="lazy" onerror="this.parentNode.classList.add('no-photo');this.style.display='none'">`
-      : `<div class="sp-no-photo">${icon || '🐾'}</div>`
-    }
-    <div class="sp-body">
+    <div class="sp-photo">
+      ${photoHtml}
+      ${fallbackHtml}
       ${statusBadge(status)}
+    </div>
+    <div class="sp-info">
       <div class="sp-name">${name}</div>
       <div class="sp-sci">${sci}</div>
-      <div class="sp-cta">View Profile →</div>
     </div>
   </div>`;
 }
@@ -163,7 +185,6 @@ async function buildSpeciesGrid(filter) {
   const firstBatch = wikiItems.slice(0, WIKI_PAGE);
   wikiOffset = firstBatch.length;
 
-  // Place skeletons
   const skelIds = firstBatch.map((_, i) => `sk-${Date.now()}-${i}`);
   skelIds.forEach(sid => {
     const d = document.createElement('div');
@@ -171,7 +192,6 @@ async function buildSpeciesGrid(filter) {
     grid.appendChild(d);
   });
 
-  // Fetch all photos in parallel, then swap in real cards
   await prefetchBatch(firstBatch);
   firstBatch.forEach((ws, i) => {
     const cached = wikiCache[(ws.sci || ws.name).toLowerCase()];
@@ -179,7 +199,6 @@ async function buildSpeciesGrid(filter) {
     if (el) el.outerHTML = makeCard(ws.name, ws.sci, ws.status, ws.cat, cached?.photo || null, ws.icon || '🐾', slugify(ws.name), true);
   });
 
-  // Load more button
   const wrap = document.getElementById('loadMoreWrap');
   const btn  = document.getElementById('loadMoreBtn');
   if (wrap) wrap.style.display = wikiOffset < wikiItems.length ? 'block' : 'none';
