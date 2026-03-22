@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════
-// ROOTS & ROARS — Main Application
-// Wikipedia API integration for automatic photo + data loading
+// ROOTS & ROARS — Main Application v5.1
+// Key fix: Wikipedia photos pre-fetched before cards render
 // ═══════════════════════════════════════════════════════
 
-// ── CURSOR ───────────────────────────────────────────
+// ── CURSOR ──────────────────────────────────────────
 const cur = document.getElementById('cur');
 const curR = document.getElementById('curRing');
 const curL = document.getElementById('curLabel');
@@ -12,9 +12,7 @@ let mx = 0, my = 0, rx = 0, ry = 0;
 document.addEventListener('mousemove', e => {
   mx = e.clientX; my = e.clientY;
   cur.style.left = mx + 'px'; cur.style.top = my + 'px';
-  // Label
-  const el = document.elementFromPoint(mx, my);
-  const lbl = el?.closest('[data-cursor]')?.dataset.cursor;
+  const lbl = document.elementFromPoint(mx, my)?.closest('[data-cursor]')?.dataset.cursor;
   if (lbl) { curL.textContent = lbl; curL.classList.add('show'); } else { curL.classList.remove('show'); }
   curL.style.left = mx + 'px'; curL.style.top = my + 'px';
 });
@@ -23,43 +21,62 @@ document.addEventListener('mousemove', e => {
   curR.style.left = rx + 'px'; curR.style.top = ry + 'px';
   requestAnimationFrame(animCursor);
 })();
-document.addEventListener('mousedown', () => { cur.style.transform = 'translate(-50%,-50%) scale(1.8)'; });
-document.addEventListener('mouseup', () => { cur.style.transform = 'translate(-50%,-50%) scale(1)'; });
+document.addEventListener('mousedown', () => cur.style.transform = 'translate(-50%,-50%) scale(1.8)');
+document.addEventListener('mouseup',   () => cur.style.transform = 'translate(-50%,-50%) scale(1)');
 
-// ── HEADER ───────────────────────────────────────────
+// ── HEADER SCROLL ────────────────────────────────────
 const hdr = document.getElementById('hdr');
 window.addEventListener('scroll', () => {
   hdr.classList.toggle('solid', window.scrollY > 50);
-  const prog = document.getElementById('prog');
   const pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
-  prog.style.width = Math.min(pct, 100) + '%';
-});
+  document.getElementById('prog').style.width = Math.min(pct, 100) + '%';
+}, { passive: true });
 
-// ── REVEAL ───────────────────────────────────────────
+// ── SCROLL REVEAL ────────────────────────────────────
 const io = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); } });
-}, { threshold: 0.06 });
+}, { threshold: 0.05 });
 document.querySelectorAll('.rv').forEach(el => io.observe(el));
 
-// ESC closes panel
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
 
 // ── WIKIPEDIA PHOTO CACHE ─────────────────────────────
-const wikiPhotoCache = {};
+const wikiCache = {};
 
-async function fetchWikiPhoto(searchTerm) {
-  if (wikiPhotoCache[searchTerm]) return wikiPhotoCache[searchTerm];
+async function getWikiData(term) {
+  const key = term.toLowerCase();
+  if (wikiCache[key] !== undefined) return wikiCache[key];
   try {
-    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm.replace(/ /g,'_'))}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    const data = await res.json();
-    const photo = data.thumbnail?.source?.replace(/\/\d+px-/, '/400px-') || null;
-    wikiPhotoCache[searchTerm] = { photo, extract: data.extract?.substring(0,200) || '' };
-    return wikiPhotoCache[searchTerm];
-  } catch(e) { return null; }
+    const slug = encodeURIComponent(term.replace(/ /g, '_'));
+    const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`, {
+      signal: AbortSignal.timeout(7000)
+    });
+    if (!r.ok) throw new Error('not found');
+    const d = await r.json();
+    let photo = null;
+    if (d.thumbnail?.source) {
+      photo = d.thumbnail.source.replace(/\/\d+px-/, '/500px-');
+    } else if (d.originalimage?.source) {
+      photo = d.originalimage.source;
+    }
+    const result = {
+      photo,
+      extract: d.extract ? d.extract.substring(0, 600) : '',
+      url: d.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${slug}`
+    };
+    wikiCache[key] = result;
+    return result;
+  } catch {
+    wikiCache[key] = null;
+    return null;
+  }
 }
 
-// ── BUILD MOSAIC ──────────────────────────────────────
+async function prefetchBatch(items) {
+  await Promise.allSettled(items.map(ws => getWikiData(ws.sci || ws.name)));
+}
+
+// ── MOSAIC ────────────────────────────────────────────
 function buildMosaic() {
   const grid = document.getElementById('mosaic');
   if (!grid) return;
@@ -67,7 +84,7 @@ function buildMosaic() {
     const s = SPECIES[m.id];
     if (!s) return '';
     return `<div class="mc ${m.span}" onclick="openSpecies('${s.id}')" data-cursor="View">
-      ${s.photo ? `<img src="${s.photo}" alt="${s.name}" loading="lazy" onerror="this.style.display='none'">` : ''}
+      <img src="${s.photo}" alt="${s.name}" loading="lazy" onerror="this.style.opacity='0'">
       <div class="mc-lbl">
         <div class="mc-name">${s.name}</div>
         <span class="mc-badge b${s.status}">${s.status}</span>
@@ -76,70 +93,52 @@ function buildMosaic() {
   }).join('');
 }
 
-// ── BUILD TICKER ──────────────────────────────────────
+// ── TICKER ────────────────────────────────────────────
 function buildTicker() {
   const track = document.getElementById('tickerTrack');
   if (!track) return;
   const items = [...TICKER_FACTS, ...TICKER_FACTS].map(f =>
-    `<span class="t-item"><span class="t-sep">◆</span>${f}</span>`).join('');
+    `<span class="t-item"><span style="color:var(--green-d);margin-right:.5rem">◆</span>${f}</span>`).join('');
   track.innerHTML = items;
 }
 
-// ── STATUS BADGE HTML ─────────────────────────────────
+// ── STATUS ────────────────────────────────────────────
+const STATUS_NAMES = {
+  LC:'Least Concern', NT:'Near Threatened', VU:'Vulnerable',
+  EN:'Endangered', CR:'Critically Endangered', DD:'Data Deficient', NE:'Not Evaluated'
+};
+
 function statusBadge(code) {
-  const labels = { LC:'LC', NT:'Near Threatened', VU:'Vulnerable', EN:'Endangered', CR:'Critically Endangered', DD:'DD', NE:'NE' };
-  return `<span class="sp-status b${code}">${labels[code] || code}</span>`;
+  return `<span class="sp-status b${code}">${STATUS_NAMES[code] || code}</span>`;
 }
 
-// ── BUILD SPECIES GRID ────────────────────────────────
+// ── CARD BUILDER ──────────────────────────────────────
+function makeCard(name, sci, status, cat, photo, icon, id, isWiki) {
+  const onclick = isWiki
+    ? `openWikiSpecies('${esc(name)}','${esc(sci)}','${esc(cat)}','${status}','${icon || '🐾'}')`
+    : `openSpecies('${id}')`;
+
+  return `<div class="sp-card" onclick="${onclick}" data-cursor="Explore">
+    ${photo
+      ? `<img class="sp-img" src="${photo}" alt="${esc(name)}" loading="lazy" onerror="this.parentNode.classList.add('no-photo');this.style.display='none'">`
+      : `<div class="sp-no-photo">${icon || '🐾'}</div>`
+    }
+    <div class="sp-body">
+      ${statusBadge(status)}
+      <div class="sp-name">${name}</div>
+      <div class="sp-sci">${sci}</div>
+      <div class="sp-cta">View Profile →</div>
+    </div>
+  </div>`;
+}
+
+function esc(s) { return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+function slugify(s) { return (s||'').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+
+// ── SPECIES GRID ──────────────────────────────────────
 let currentFilter = 'all';
 let wikiOffset = 0;
-const WIKI_PAGE_SIZE = 16;
-
-function buildSpeciesGrid(filter) {
-  currentFilter = filter;
-  wikiOffset = 0;
-  const grid = document.getElementById('speciesGrid');
-  if (!grid) return;
-
-  // Featured deep profiles
-  let featured = Object.values(SPECIES);
-  if (filter === 'endangered') {
-    featured = featured.filter(s => ['EN','CR','VU'].includes(s.status));
-  } else if (filter !== 'all') {
-    featured = featured.filter(s => s.category === filter);
-  }
-
-  // Render featured with real photos
-  grid.innerHTML = featured.map(s => makeCard(s.name, s.sci, s.status, s.category, s.photo, s.icon, s.id, false)).join('');
-
-  // Add Wikipedia species as skeleton cards, then load photos
-  const wikiFiltered = getWikiFiltered(filter);
-  wikiOffset = Math.min(WIKI_PAGE_SIZE, wikiFiltered.length);
-
-  wikiFiltered.slice(0, WIKI_PAGE_SIZE).forEach((ws, i) => {
-    const skId = `skel-${i}`;
-    const div = document.createElement('div');
-    div.id = skId;
-    div.className = 'sp-skel';
-    grid.appendChild(div);
-
-    // Load photo async
-    loadWikiCard(ws, skId);
-  });
-
-  const loadBtn = document.getElementById('loadMoreBtn');
-  const loadWrap = document.getElementById('loadMoreWrap');
-  if (loadBtn && loadWrap) {
-    if (wikiOffset < wikiFiltered.length) {
-      loadWrap.style.display = 'block';
-      loadBtn.disabled = false;
-      loadBtn.textContent = `📡 Load ${Math.min(WIKI_PAGE_SIZE, wikiFiltered.length - wikiOffset)} more species →`;
-    } else {
-      loadWrap.style.display = 'none';
-    }
-  }
-}
+const WIKI_PAGE = 12;
 
 function getWikiFiltered(filter) {
   if (filter === 'all') return WIKI_SPECIES;
@@ -147,68 +146,74 @@ function getWikiFiltered(filter) {
   return WIKI_SPECIES.filter(w => w.cat === filter);
 }
 
-async function loadWikiCard(ws, containerId) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  const data = await fetchWikiPhoto(ws.sci || ws.name);
-  const photo = data?.photo || null;
-  const html = makeCard(ws.name, ws.sci, ws.status, ws.cat, photo, ws.icon || '🐾', slugify(ws.name), true);
-  container.outerHTML = html;
-  // Store in cache for onclick
-  ws._wikiLoaded = true;
-}
-
-function loadWikiSpecies() {
+async function buildSpeciesGrid(filter) {
+  currentFilter = filter;
+  wikiOffset = 0;
   const grid = document.getElementById('speciesGrid');
   if (!grid) return;
-  const wikiFiltered = getWikiFiltered(currentFilter);
-  const nextBatch = wikiFiltered.slice(wikiOffset, wikiOffset + WIKI_PAGE_SIZE);
-  wikiOffset += nextBatch.length;
+
+  // Deep profiles — photos already in data.js, render immediately
+  let featured = Object.values(SPECIES);
+  if (filter === 'endangered') featured = featured.filter(s => ['EN','CR','VU'].includes(s.status));
+  else if (filter !== 'all')   featured = featured.filter(s => s.category === filter);
+  grid.innerHTML = featured.map(s => makeCard(s.name, s.sci, s.status, s.category, s.photo, s.icon, s.id, false)).join('');
+
+  // Wiki species — skeletons first, then photos load
+  const wikiItems = getWikiFiltered(filter);
+  const firstBatch = wikiItems.slice(0, WIKI_PAGE);
+  wikiOffset = firstBatch.length;
+
+  // Place skeletons
+  const skelIds = firstBatch.map((_, i) => `sk-${Date.now()}-${i}`);
+  skelIds.forEach(sid => {
+    const d = document.createElement('div');
+    d.id = sid; d.className = 'sp-skel';
+    grid.appendChild(d);
+  });
+
+  // Fetch all photos in parallel, then swap in real cards
+  await prefetchBatch(firstBatch);
+  firstBatch.forEach((ws, i) => {
+    const cached = wikiCache[(ws.sci || ws.name).toLowerCase()];
+    const el = document.getElementById(skelIds[i]);
+    if (el) el.outerHTML = makeCard(ws.name, ws.sci, ws.status, ws.cat, cached?.photo || null, ws.icon || '🐾', slugify(ws.name), true);
+  });
+
+  // Load more button
+  const wrap = document.getElementById('loadMoreWrap');
+  const btn  = document.getElementById('loadMoreBtn');
+  if (wrap) wrap.style.display = wikiOffset < wikiItems.length ? 'block' : 'none';
+  if (btn)  { btn.disabled = false; btn.textContent = 'Load more species →'; }
+}
+
+async function loadWikiSpecies() {
+  const grid = document.getElementById('speciesGrid');
+  if (!grid) return;
+  const wikiItems = getWikiFiltered(currentFilter);
+  const batch = wikiItems.slice(wikiOffset, wikiOffset + WIKI_PAGE);
+  if (!batch.length) return;
+  wikiOffset += batch.length;
 
   const btn = document.getElementById('loadMoreBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
 
-  nextBatch.forEach((ws, i) => {
-    const skId = `skel-more-${Date.now()}-${i}`;
-    const div = document.createElement('div');
-    div.id = skId;
-    div.className = 'sp-skel';
-    grid.appendChild(div);
-    loadWikiCard(ws, skId);
+  const skelIds = batch.map((_, i) => `sk-m-${Date.now()}-${i}`);
+  skelIds.forEach(sid => {
+    const d = document.createElement('div');
+    d.id = sid; d.className = 'sp-skel';
+    grid.appendChild(d);
   });
 
-  setTimeout(() => {
-    const loadWrap = document.getElementById('loadMoreWrap');
-    const btn2 = document.getElementById('loadMoreBtn');
-    if (wikiOffset < wikiFiltered.length) {
-      if (btn2) { btn2.disabled = false; btn2.textContent = `📡 Load ${Math.min(WIKI_PAGE_SIZE, wikiFiltered.length - wikiOffset)} more species →`; }
-    } else {
-      if (loadWrap) loadWrap.style.display = 'none';
-    }
-  }, 2000);
-}
+  await prefetchBatch(batch);
+  batch.forEach((ws, i) => {
+    const cached = wikiCache[(ws.sci || ws.name).toLowerCase()];
+    const el = document.getElementById(skelIds[i]);
+    if (el) el.outerHTML = makeCard(ws.name, ws.sci, ws.status, ws.cat, cached?.photo || null, ws.icon || '🐾', slugify(ws.name), true);
+  });
 
-function makeCard(name, sci, status, cat, photo, icon, id, isWiki) {
-  const onclick = isWiki
-    ? `openWikiSpecies('${esc(name)}','${esc(sci)}','${esc(cat)}','${status}','${icon}')`
-    : `openSpecies('${id}')`;
-  return `<div class="sp-card" onclick="${onclick}" data-cursor="Explore">
-    ${photo
-      ? `<img class="sp-img" src="${photo}" alt="${esc(name)}" loading="lazy" onerror="this.nextElementSibling.style.display='flex';this.style.display='none'">`
-      : ''}
-    <div class="sp-emoji" style="${photo ? 'display:none' : ''}">${icon}</div>
-    ${isWiki ? '<div class="sp-w-badge">W</div>' : ''}
-    <div class="sp-body">
-      ${statusBadge(status)}
-      <div class="sp-name">${name}</div>
-      <div class="sp-sci">${sci}</div>
-      <div class="sp-cta">${isWiki ? 'Wikipedia' : 'Full Profile'} →</div>
-    </div>
-  </div>`;
-}
-
-function esc(str) {
-  return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const wrap = document.getElementById('loadMoreWrap');
+  if (btn)  { btn.disabled = false; btn.textContent = 'Load more species →'; }
+  if (wrap) wrap.style.display = wikiOffset < wikiItems.length ? 'block' : 'none';
 }
 
 // ── FILTER TABS ───────────────────────────────────────
@@ -218,7 +223,7 @@ function setFilter(cat, btn) {
   buildSpeciesGrid(cat);
 }
 
-// ── CATEGORY GRID ─────────────────────────────────────
+// ── CATEGORY SECTION GRID ─────────────────────────────
 function buildCatGrid() {
   const grid = document.getElementById('catGrid');
   if (!grid) return;
@@ -233,13 +238,13 @@ function buildCatGrid() {
     </div>`).join('');
 }
 
-// ── A-Z ───────────────────────────────────────────────
+// ── A–Z ───────────────────────────────────────────────
 let activeAZ = null;
+
 function buildAZGrid() {
   const grid = document.getElementById('azGrid');
   if (!grid) return;
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  grid.innerHTML = letters.map(l =>
+  grid.innerHTML = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l =>
     `<button class="az-btn" id="az-${l}" onclick="showAZ('${l}',this)">${l}</button>`
   ).join('');
 }
@@ -255,24 +260,22 @@ function showAZ(l, btn) {
   activeAZ = l;
   document.querySelectorAll('.az-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-
   const items = AZ_DATA[l] || [];
-  if (!items.length) {
-    results.innerHTML = `<div class="az-item"><div class="az-item-n">No entries yet for "${l}"</div></div>`;
-  } else {
-    results.innerHTML = items.map(it => `
-      <button class="az-item" onclick="${it.id ? `openSpecies('${it.id}')` : `openWikiSpecies('${esc(it.n)}','${esc(it.sci || '')}','${it.cat?.toLowerCase() || 'wildlife'}','${it.status || 'LC'}','🐾')`}">
-        <div class="az-item-n">${it.n}</div>
-        <div class="az-item-s">${it.sci || ''}</div>
-        <span class="az-item-t">${it.cat || ''}</span>
-        ${!it.id ? `<span class="az-item-lnk">Wikipedia →</span>` : ''}
-      </button>`).join('');
-  }
+  results.innerHTML = items.length
+    ? items.map(it => `<button class="az-item" onclick="${it.id
+        ? `openSpecies('${it.id}')`
+        : `openWikiSpecies('${esc(it.n)}','${esc(it.sci||'')}','wildlife','${it.status||'LC'}','🐾')`}">
+          <div class="az-item-n">${it.n}</div>
+          <div class="az-item-s">${it.sci||''}</div>
+          <span class="az-item-t">${it.cat||''}</span>
+        </button>`).join('')
+    : `<div class="az-item"><div class="az-item-n" style="color:var(--ink3)">No entries for "${l}"</div></div>`;
   results.style.display = 'grid';
 }
 
 // ── SEARCH ────────────────────────────────────────────
 let searchTimer;
+
 function doSearch(query, boxId) {
   clearTimeout(searchTimer);
   const box = document.getElementById(boxId);
@@ -280,76 +283,62 @@ function doSearch(query, boxId) {
   if (query.length < 2) { box.classList.remove('show'); return; }
 
   searchTimer = setTimeout(async () => {
-    // Local matches (deep profiles)
+    const q = query.toLowerCase();
     const local = Object.values(SPECIES).filter(s =>
-      s.name.toLowerCase().includes(query.toLowerCase()) ||
-      s.sci.toLowerCase().includes(query.toLowerCase())
-    ).slice(0, 4);
+      s.name.toLowerCase().includes(q) || s.sci.toLowerCase().includes(q)
+    ).slice(0, 5);
+    const wm = WIKI_SPECIES.filter(w =>
+      w.name.toLowerCase().includes(q) || (w.sci||'').toLowerCase().includes(q)
+    ).slice(0, 5 - local.length);
 
-    // Wiki species matches
-    const wikiMatches = WIKI_SPECIES.filter(w =>
-      w.name.toLowerCase().includes(query.toLowerCase()) ||
-      (w.sci || '').toLowerCase().includes(query.toLowerCase())
-    ).slice(0, 4);
-
-    let html = '';
-    local.forEach(s => {
-      html += `<div class="sug-item" onclick="openSpecies('${s.id}');document.getElementById('${boxId}').classList.remove('show');">
+    let html = local.map(s => `
+      <div class="sug-item" onclick="openSpecies('${s.id}');document.getElementById('${boxId}').classList.remove('show')">
         <div class="sug-thumb">${s.photo ? `<img src="${s.photo}" alt="">` : s.icon}</div>
         <div><div class="sug-name">${s.name}</div><div class="sug-sci">${s.sci}</div></div>
         <span class="sug-tag">Profile</span>
-      </div>`;
-    });
-    wikiMatches.slice(0, 6 - local.length).forEach(w => {
-      html += `<div class="sug-item sug-wiki" onclick="openWikiSpecies('${esc(w.name)}','${esc(w.sci)}','${w.cat}','${w.status}','${w.icon||'🐾'}');document.getElementById('${boxId}').classList.remove('show');">
-        <div class="sug-thumb">${w.icon || '🐾'}</div>
+      </div>`).join('') + wm.map(w => `
+      <div class="sug-item" onclick="openWikiSpecies('${esc(w.name)}','${esc(w.sci)}','${w.cat}','${w.status}','${w.icon||'🐾'}');document.getElementById('${boxId}').classList.remove('show')">
+        <div class="sug-thumb">${w.icon||'🐾'}</div>
         <div><div class="sug-name">${w.name}</div><div class="sug-sci">${w.sci}</div></div>
-        <span class="sug-tag">W</span>
-      </div>`;
-    });
+        <span class="sug-tag">Species</span>
+      </div>`).join('');
 
-    // Also search Wikipedia API for unrecognized queries
     if (!html) {
       try {
-        const res = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=5&namespace=0&format=json&origin=*`);
-        const [, titles, , urls] = await res.json();
-        titles.slice(0,4).forEach((t, i) => {
-          html += `<div class="sug-item sug-wiki" onclick="openWikiSpecies('${esc(t)}','','wildlife','LC','🐾');document.getElementById('${boxId}').classList.remove('show');">
+        const r = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=4&namespace=0&format=json&origin=*`);
+        const [, titles] = await r.json();
+        html = titles.map(t => `
+          <div class="sug-item" onclick="openWikiSpecies('${esc(t)}','','wildlife','LC','🔍');document.getElementById('${boxId}').classList.remove('show')">
             <div class="sug-thumb">🔍</div>
-            <div><div class="sug-name">${t}</div><div class="sug-sci">From Wikipedia</div></div>
+            <div><div class="sug-name">${t}</div><div class="sug-sci">Wikipedia</div></div>
             <span class="sug-tag">Wiki</span>
-          </div>`;
-        });
-      } catch(e) {}
+          </div>`).join('');
+      } catch {}
     }
 
-    if (!html) html = `<div class="sug-item"><div style="color:var(--ink3);font-size:.8rem;padding:.2rem 0;">No results found for "${query}"</div></div>`;
-    box.innerHTML = html;
+    box.innerHTML = html || `<div class="sug-item"><div style="color:var(--ink3);font-size:.8rem">No results found</div></div>`;
     box.classList.add('show');
-  }, 200);
+  }, 220);
 }
 
-// Close search on outside click
 document.addEventListener('click', e => {
-  if (!e.target.closest('.hdr-search') && !e.target.closest('.hero-search-wrap')) {
+  if (!e.target.closest('.hdr-search') && !e.target.closest('.hero-search-wrap'))
     document.querySelectorAll('.sug-box').forEach(b => b.classList.remove('show'));
-  }
 });
 
-// ── CATEGORY PAGE ──────────────────────────────────────
+// ── CATEGORY PAGE ─────────────────────────────────────
 let catPageFilter = 'mammals';
-let catWikiOffset = 0;
+let catOffset = 0;
 
-function showCatPage(cat) {
-  catPageFilter = cat;
-  catWikiOffset = 0;
+async function showCatPage(cat) {
+  catPageFilter = cat; catOffset = 0;
   showView('category');
 
   const titles = {
-    mammals: ['Mammals of India', '500+ documented mammal species — from Bengal Tigers to Pangolins'],
-    birds: ['Birds of India', '1,300+ resident and migratory bird species'],
-    reptiles: ['Reptiles of India', '460+ species including crocodilians, snakes, lizards and turtles'],
-    trees: ['Trees of India', '1,200+ native and naturalized tree species'],
+    mammals: ['Mammals of India', '500+ documented mammal species'],
+    birds:   ['Birds of India',   '1,300+ resident and migratory bird species'],
+    reptiles:['Reptiles of India','460+ species including crocodilians, snakes and turtles'],
+    trees:   ['Trees of India',   '1,200+ native and naturalised tree species'],
   };
   const [title, sub] = titles[cat] || [cat, ''];
   document.getElementById('catPageTitle').textContent = title;
@@ -358,97 +347,89 @@ function showCatPage(cat) {
   const grid = document.getElementById('catGrid2');
   grid.innerHTML = '';
 
-  // Featured deep profiles
-  const featured = Object.values(SPECIES).filter(s => s.category === cat);
-  featured.forEach(s => {
+  Object.values(SPECIES).filter(s => s.category === cat).forEach(s => {
     grid.insertAdjacentHTML('beforeend', makeCard(s.name, s.sci, s.status, s.category, s.photo, s.icon, s.id, false));
   });
 
-  // Wikipedia species for this category
   const wikiItems = WIKI_SPECIES.filter(w => w.cat === cat);
-  catWikiOffset = Math.min(WIKI_PAGE_SIZE, wikiItems.length);
+  const firstBatch = wikiItems.slice(0, WIKI_PAGE);
+  catOffset = firstBatch.length;
 
-  wikiItems.slice(0, WIKI_PAGE_SIZE).forEach((ws, i) => {
-    const skId = `cat-skel-${i}`;
-    const div = document.createElement('div');
-    div.id = skId; div.className = 'sp-skel';
-    grid.appendChild(div);
-    loadWikiCard(ws, skId);
+  const skelIds = firstBatch.map((_, i) => `csk-${Date.now()}-${i}`);
+  skelIds.forEach(sid => {
+    const d = document.createElement('div'); d.id = sid; d.className = 'sp-skel'; grid.appendChild(d);
   });
 
-  const loadMore = document.getElementById('catLoadMore');
-  const catBtn = document.getElementById('catLoadBtn');
-  if (loadMore && catBtn) {
-    if (catWikiOffset < wikiItems.length) {
-      loadMore.style.display = 'block';
-      catBtn.textContent = `Load ${Math.min(WIKI_PAGE_SIZE, wikiItems.length - catWikiOffset)} more ${cat} →`;
-      catBtn.onclick = () => loadMoreCat(cat);
-    } else {
-      loadMore.style.display = 'none';
-    }
-  }
+  await prefetchBatch(firstBatch);
+  firstBatch.forEach((ws, i) => {
+    const cached = wikiCache[(ws.sci||ws.name).toLowerCase()];
+    const el = document.getElementById(skelIds[i]);
+    if (el) el.outerHTML = makeCard(ws.name, ws.sci, ws.status, ws.cat, cached?.photo||null, ws.icon||'🐾', slugify(ws.name), true);
+  });
+
+  const lm = document.getElementById('catLoadMore');
+  const btn = document.getElementById('catLoadBtn');
+  if (lm) lm.style.display = catOffset < wikiItems.length ? 'block' : 'none';
+  if (btn) { btn.disabled = false; btn.textContent = `Load more ${cat} →`; btn.onclick = () => loadMoreCat(cat); }
 }
 
-function loadMoreCat(cat) {
+async function loadMoreCat(cat) {
   const grid = document.getElementById('catGrid2');
   const wikiItems = WIKI_SPECIES.filter(w => w.cat === cat);
-  const nextBatch = wikiItems.slice(catWikiOffset, catWikiOffset + WIKI_PAGE_SIZE);
-  catWikiOffset += nextBatch.length;
+  const batch = wikiItems.slice(catOffset, catOffset + WIKI_PAGE);
+  if (!batch.length) return;
+  catOffset += batch.length;
 
   const btn = document.getElementById('catLoadBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
 
-  nextBatch.forEach((ws, i) => {
-    const skId = `cat-more-${Date.now()}-${i}`;
-    const div = document.createElement('div');
-    div.id = skId; div.className = 'sp-skel';
-    grid.appendChild(div);
-    loadWikiCard(ws, skId);
+  const skelIds = batch.map((_, i) => `csk-m-${Date.now()}-${i}`);
+  skelIds.forEach(sid => {
+    const d = document.createElement('div'); d.id = sid; d.className = 'sp-skel'; grid.appendChild(d);
   });
 
-  setTimeout(() => {
-    const btn2 = document.getElementById('catLoadBtn');
-    const lm = document.getElementById('catLoadMore');
-    if (catWikiOffset < wikiItems.length) {
-      if (btn2) { btn2.disabled = false; btn2.textContent = `Load ${Math.min(WIKI_PAGE_SIZE, wikiItems.length - catWikiOffset)} more ${cat} →`; }
-    } else {
-      if (lm) lm.style.display = 'none';
-    }
-  }, 2000);
+  await prefetchBatch(batch);
+  batch.forEach((ws, i) => {
+    const cached = wikiCache[(ws.sci||ws.name).toLowerCase()];
+    const el = document.getElementById(skelIds[i]);
+    if (el) el.outerHTML = makeCard(ws.name, ws.sci, ws.status, ws.cat, cached?.photo||null, ws.icon||'🐾', slugify(ws.name), true);
+  });
+
+  const lm = document.getElementById('catLoadMore');
+  if (btn)  { btn.disabled = false; btn.textContent = `Load more ${cat} →`; }
+  if (lm) lm.style.display = catOffset < wikiItems.length ? 'block' : 'none';
 }
 
 // ── VIEW MANAGER ──────────────────────────────────────
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  const el = document.getElementById('view-' + name);
-  if (el) el.classList.add('active');
+  document.getElementById('view-' + name)?.classList.add('active');
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 // ── MODAL ─────────────────────────────────────────────
-function openModal() { document.getElementById('modal').classList.add('show'); }
+function openModal()  { document.getElementById('modal').classList.add('show'); }
 function closeModal() { document.getElementById('modal').classList.remove('show'); }
 function modalSub() {
-  const btn = document.getElementById('mBtn');
-  btn.textContent = '✓ Subscribed! Welcome to Roots & Roars';
-  btn.style.background = 'var(--green-l)';
+  const b = document.getElementById('mBtn');
+  b.textContent = '✓ Subscribed! Welcome to Roots & Roars';
+  b.style.background = 'var(--green-l)';
   setTimeout(closeModal, 1800);
 }
 function nlSub() {
   const el = document.getElementById('nlEmail');
-  if (!el.value.includes('@')) { el.style.borderColor = 'var(--rose)'; return; }
-  el.value = ''; el.placeholder = '✓ Subscribed! Thank you.';
+  if (!el?.value.includes('@')) { if(el) el.style.borderColor = 'var(--rose)'; return; }
+  el.value = ''; el.placeholder = '✓ Subscribed — thank you!';
 }
 function toggleMode() {
-  const btn = document.getElementById('modeBtn');
-  btn.textContent = btn.textContent === '☀️' ? '🌙' : '☀️';
+  const b = document.getElementById('modeBtn');
+  b.textContent = b.textContent === '☀️' ? '🌙' : '☀️';
 }
 
-// ── URL PARAMS (deep linking) ──────────────────────────
+// ── URL DEEP LINK ──────────────────────────────────────
 function handleURLParams() {
-  const params = new URLSearchParams(window.location.search);
-  const sp = params.get('species');
-  if (sp) setTimeout(() => openSpecies(sp), 500);
+  const sp = new URLSearchParams(window.location.search).get('species');
+  if (sp) setTimeout(() => openSpecies(sp), 600);
 }
 
 // ── INIT ──────────────────────────────────────────────
@@ -460,22 +441,17 @@ document.addEventListener('DOMContentLoaded', () => {
   buildAZGrid();
   handleURLParams();
 
-  // Hero search button
-  const heroSb = document.querySelector('.hero-sb');
-  if (heroSb) {
-    heroSb.addEventListener('click', () => {
-      const q = document.getElementById('heroQ')?.value;
-      if (q) doSearch(q, 'heroSug');
-    });
-    document.getElementById('heroQ')?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { doSearch(e.target.value, 'heroSug'); }
-    });
-    // Show suggestions on input
-    document.getElementById('heroQ')?.addEventListener('focus', e => {
-      if (e.target.value.length > 1) document.getElementById('heroSug')?.classList.add('show');
-    });
-    document.getElementById('heroQ')?.addEventListener('blur', () => {
-      setTimeout(() => document.getElementById('heroSug')?.classList.remove('show'), 220);
-    });
-  }
+  document.querySelector('.hero-sb')?.addEventListener('click', () => {
+    const v = document.getElementById('heroQ')?.value;
+    if (v) doSearch(v, 'heroSug');
+  });
+  document.getElementById('heroQ')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSearch(e.target.value, 'heroSug');
+  });
+  document.getElementById('heroQ')?.addEventListener('focus', e => {
+    if (e.target.value.length > 1) document.getElementById('heroSug')?.classList.add('show');
+  });
+  document.getElementById('heroQ')?.addEventListener('blur', () => {
+    setTimeout(() => document.getElementById('heroSug')?.classList.remove('show'), 220);
+  });
 });
