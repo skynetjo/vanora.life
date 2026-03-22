@@ -1,290 +1,307 @@
 // ═══════════════════════════════════════════════════════
-// ROOTS & ROARS — Species Detail Panel
-// Slide-in panel with full species profile
+// ROOTS & ROARS — Species Panel
+// Deep profiles for featured species
+// Wikipedia API fetch for all others
 // ═══════════════════════════════════════════════════════
 
-const IUCN_CATS = ['NE','DD','LC','NT','VU','EN','CR','EW','EX'];
-const IUCN_LABELS = {
-  NE:'Not Evaluated', DD:'Data Deficient', LC:'Least Concern', NT:'Near Threatened',
-  VU:'Vulnerable', EN:'Endangered', CR:'Critically Endangered', EW:'Extinct in Wild', EX:'Extinct'
+const STATUS_LABELS = {
+  LC:'Least Concern', NT:'Near Threatened', VU:'Vulnerable',
+  EN:'Endangered', CR:'Critically Endangered', EW:'Extinct in Wild', EX:'Extinct', DD:'Data Deficient', NE:'Not Evaluated'
 };
-
-let panelHistory = [];
-let currentSpeciesId = null;
 
 function openSpecies(id) {
   const s = SPECIES[id];
-  if (!s) return;
-
-  // Track history for prev/next nav
-  if (currentSpeciesId && currentSpeciesId !== id) {
-    panelHistory.push(currentSpeciesId);
+  if (s) {
+    renderDeepPanel(s);
+  } else {
+    // Check WIKI_SPECIES
+    const ws = WIKI_SPECIES.find(w => w.id === id || slugify(w.name) === id);
+    if (ws) {
+      renderWikiPanel(ws.name, ws.sci, ws.cat, ws.status, ws.icon || '🐾');
+    } else {
+      renderWikiPanel(id, '', 'wildlife', 'LC', '🐾');
+    }
   }
-  currentSpeciesId = id;
-
-  stopAllSounds();
-  renderPanel(s);
-
-  // Open overlay & panel
-  document.getElementById('panelOverlay').classList.add('open');
-  document.getElementById('speciesPanel').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('panel').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
 
-  // Animate diet bars after a delay
+function openWikiSpecies(name, sci, cat, status, icon) {
+  renderWikiPanel(name, sci, cat, status, icon);
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('panel').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePanel() {
+  stopAllSounds();
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('panel').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── WIKIPEDIA PANEL ──────────────────────────────────
+async function renderWikiPanel(name, sci, cat, status, icon) {
+  const panel = document.getElementById('panel');
+  panel.innerHTML = `
+    <div class="p-topbar">
+      <button class="p-close" onclick="closePanel()">← Close</button>
+      <div class="p-topright">
+        <button class="p-share" onclick="shareSpecies('${encodeURIComponent(name)}')">⎗ Share</button>
+      </div>
+    </div>
+    <div class="p-hero" style="background: linear-gradient(135deg,#101810,#1a2a18);">
+      <div class="p-hero-emoji-bg">${icon}</div>
+      <div class="p-hero-grad"></div>
+      <div class="p-wiki-src">📡 Wikipedia</div>
+      <div class="p-hero-body">
+        <div class="p-badges">
+          <span class="p-badge b${status}">${STATUS_LABELS[status] || status}</span>
+          <span class="p-badge p-badge-cat">${cat}</span>
+        </div>
+        <div class="p-name">${name}</div>
+        <div class="p-sci">${sci}</div>
+      </div>
+    </div>
+    <div class="p-body">
+      <div class="p-sec">
+        <div class="p-loading">
+          <div class="p-spin"></div><br>
+          Loading from Wikipedia…
+        </div>
+      </div>
+    </div>`;
+
+  // Fetch from Wikipedia API
+  try {
+    const searchTerm = sci || name;
+    const apiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm.replace(' ','_'))}`;
+    const res = await fetch(apiUrl);
+    const data = await res.json();
+
+    // Also try to get image
+    let imgUrl = data.thumbnail?.source?.replace(/\/\d+px-/, '/800px-') || '';
+    if (!imgUrl && data.originalimage) imgUrl = data.originalimage.source;
+
+    // Update hero image if found
+    if (imgUrl) {
+      const heroEl = panel.querySelector('.p-hero');
+      const img = document.createElement('img');
+      img.className = 'p-hero-img';
+      img.src = imgUrl;
+      img.alt = name;
+      img.onerror = () => img.remove();
+      heroEl.insertBefore(img, heroEl.firstChild);
+    }
+
+    // Build description
+    const extract = data.extract || 'No description available from Wikipedia.';
+    const shortDesc = extract.length > 800 ? extract.substring(0, 800) + '…' : extract;
+    const wikiUrl = data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(name.replace(/ /g,'_'))}`;
+
+    panel.querySelector('.p-body').innerHTML = `
+      <div class="p-sec">
+        <div class="p-sec-h">About</div>
+        <div class="p-wiki-excerpt">${shortDesc}</div>
+        <a class="p-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">
+          📖 Read full Wikipedia article →
+        </a>
+      </div>
+      ${sci ? `
+      <div class="p-sec">
+        <div class="p-sec-h">Scientific Classification</div>
+        <table class="taxon" width="100%">
+          <tr class="trow"><td class="tk">Scientific Name</td><td class="tv">${sci}</td></tr>
+          <tr class="trow"><td class="tk">Common Name</td><td class="tv plain">${name}</td></tr>
+          <tr class="trow"><td class="tk">Category</td><td class="tv plain" style="text-transform:capitalize">${cat}</td></tr>
+          <tr class="trow"><td class="tk">IUCN Status</td><td class="tk b${status}" style="font-style:normal;">${STATUS_LABELS[status] || status}</td></tr>
+        </table>
+      </div>` : ''}
+      <div class="p-sec">
+        <div class="p-sec-h">Want full species profile?</div>
+        <p class="p-text" style="font-size:.8rem;">This species uses a Wikipedia preview. To add a full deep profile with sounds, diet charts, fun facts, and more — add it to the <code style="background:rgba(255,255,255,.08);padding:.1rem .4rem;border-radius:4px;color:var(--green-l);">SPECIES</code> object in <strong>data.js</strong>.</p>
+      </div>`;
+  } catch(e) {
+    const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent((sci||name).replace(/ /g,'_'))}`;
+    panel.querySelector('.p-body').innerHTML = `
+      <div class="p-sec">
+        <div class="p-text">Could not load Wikipedia data. <a class="p-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener" style="display:inline;">View on Wikipedia →</a></div>
+      </div>`;
+  }
+}
+
+// ── DEEP PROFILE PANEL ───────────────────────────────
+function renderDeepPanel(s) {
+  const panel = document.getElementById('panel');
+  const dietColors = ['#4a8c5c','#62b07a','#c8922a','#e0ac4a','#3a7fa8','#9d4edd'];
+  const iucnOrder = ['NE','DD','LC','NT','VU','EN','CR','EW','EX'];
+
+  const statsHtml = (s.stats || []).map(st => `
+    <div class="pst">
+      <div class="pst-l">${st.l}</div>
+      <div class="pst-v">${st.v}</div>
+      <div class="pst-u">${st.u}</div>
+    </div>`).join('');
+
+  const dietHtml = (s.diet || []).map((d, i) => `
+    <div class="diet-row">
+      <div class="diet-l">${d.label}</div>
+      <div class="diet-t"><div class="diet-f" data-pct="${d.pct}" style="background:${d.color || dietColors[i%dietColors.length]}"></div></div>
+      <div class="diet-p">${d.pct}%</div>
+    </div>`).join('');
+
+  const matingHtml = (s.mating || []).map(m => `
+    <div class="m-item"><div class="m-l">${m.l}</div><div class="m-v">${m.v}</div></div>`).join('');
+
+  const factsHtml = (s.funFacts || []).map(f => `
+    <div class="ff-item"><div class="ff-ico">${f.icon}</div><div class="ff-txt">${f.text}</div></div>`).join('');
+
+  const attrsHtml = (s.attrs || []).map(a => `
+    <span class="chip" style="background:${a.cls}22;border-color:${a.cls}44;color:${a.cls === '#374151' ? '#9ca3af' : a.cls === '#14532d' ? 'var(--green-l)' : '#e5e7eb'}">${a.lbl}</span>`).join('');
+
+  const iucnHtml = iucnOrder.map(code => `
+    <div class="ic ic-${code} ${s.iucn === code ? 'act' : ''}">${code}</div>`).join('');
+
+  const threatsHtml = (s.threats || []).map(t => `
+    <div class="threat"><span>⚠</span><span>${t}</span></div>`).join('');
+
+  const rangeHtml = (s.range || []).map(r => `<span class="rtag">${r}</span>`).join('');
+
+  const taxonHtml = s.taxonomy ? Object.entries(s.taxonomy).map(([k,v]) => `
+    <div class="trow"><span class="tk">${k}</span><span class="tv">${v}</span></div>`).join('') : '';
+
+  const relatedHtml = (s.related || []).slice(0,4).map(id => {
+    const r = SPECIES[id];
+    if (!r) return '';
+    return `<div class="rel-card" onclick="openSpecies('${id}')">
+      <div class="rel-ico">${r.icon}</div>
+      <div><div class="rel-name">${r.name}</div><div class="rel-sci">${r.sci}</div></div>
+    </div>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="p-topbar">
+      <button class="p-close" onclick="closePanel()">← Close</button>
+      <div class="p-topright">
+        <button class="p-share" onclick="shareSpecies('${s.id}')">⎗ Share</button>
+      </div>
+    </div>
+
+    <div class="p-hero">
+      ${s.photo ? `<img class="p-hero-img" src="${s.photo}" alt="${s.name}" onerror="this.style.display='none'">` : ''}
+      <div class="p-hero-emoji-bg">${s.icon}</div>
+      <div class="p-hero-grad"></div>
+      <div class="p-hero-body">
+        <div class="p-badges">
+          <span class="p-badge b${s.status}">${s.statusLabel}</span>
+          <span class="p-badge p-badge-cat">${s.category}</span>
+        </div>
+        <div class="p-name">${s.name}</div>
+        <div class="p-sci">${s.sci}</div>
+      </div>
+    </div>
+
+    <div class="p-stats">${statsHtml}</div>
+
+    <div class="p-sound">
+      <button class="snd-btn" id="sndBtn" onclick="playSound('${s.sound || s.id}', this)">
+        <span class="snd-ico">🔊</span> Play Sound
+      </button>
+      <div class="wave-viz">
+        ${[1,2,3,4,5,6,7].map(() => '<div class="wv"></div>').join('')}
+      </div>
+      <span class="snd-note">Authentic sound</span>
+    </div>
+
+    <div class="p-body">
+      <div class="p-sec">
+        <div class="p-sec-h">About</div>
+        <p class="p-text">${s.about}</p>
+      </div>
+
+      ${s.attrs?.length ? `<div class="p-sec">
+        <div class="p-sec-h">Characteristics</div>
+        <div class="chip-wrap">${attrsHtml}</div>
+      </div>` : ''}
+
+      ${s.diet?.length ? `<div class="p-sec">
+        <div class="p-sec-h">Diet</div>
+        ${dietHtml}
+      </div>` : ''}
+
+      ${s.habitat ? `<div class="p-sec">
+        <div class="p-sec-h">Habitat</div>
+        <p class="p-text">${s.habitat}</p>
+      </div>` : ''}
+
+      ${s.behavior ? `<div class="p-sec">
+        <div class="p-sec-h">Behaviour</div>
+        <p class="p-text">${s.behavior}</p>
+      </div>` : ''}
+
+      ${s.mating?.length ? `<div class="p-sec">
+        <div class="p-sec-h">Breeding</div>
+        <div class="m-grid">${matingHtml}</div>
+      </div>` : ''}
+
+      ${s.funFacts?.length ? `<div class="p-sec">
+        <div class="p-sec-h">Did You Know?</div>
+        <div class="ff-list">${factsHtml}</div>
+      </div>` : ''}
+
+      <div class="p-sec">
+        <div class="p-sec-h">Conservation Status</div>
+        <div class="iucn-scale">${iucnHtml}</div>
+        <div class="iucn-row">
+          <div class="iucn-box"><div class="iucn-box-l">Status</div><div class="iucn-box-v b${s.iucn}">${s.statusLabel}</div></div>
+          <div class="iucn-box"><div class="iucn-box-l">Population Trend</div><div class="iucn-box-v ${s.popTrend === 'Increasing' ? 'tinc' : s.popTrend === 'Decreasing' ? 'tdec' : 'tsta'}">${s.popTrend}</div></div>
+          <div class="iucn-box"><div class="iucn-box-l">Known Population</div><div class="iucn-box-v">${s.popNum}</div></div>
+          <div class="iucn-box"><div class="iucn-box-l">Where Found</div><div class="iucn-box-v">${s.popWhere}</div></div>
+        </div>
+      </div>
+
+      ${s.threats?.length ? `<div class="p-sec">
+        <div class="p-sec-h">Major Threats</div>
+        <div class="threats">${threatsHtml}</div>
+      </div>` : ''}
+
+      ${s.range?.length ? `<div class="p-sec">
+        <div class="p-sec-h">Range in India</div>
+        <div class="range-tags">${rangeHtml}</div>
+      </div>` : ''}
+
+      ${taxonHtml ? `<div class="p-sec">
+        <div class="p-sec-h">Taxonomy</div>
+        <table class="taxon" width="100%">${taxonHtml}</table>
+      </div>` : ''}
+
+      ${relatedHtml ? `<div class="p-sec">
+        <div class="p-sec-h">Related Species</div>
+        <div class="rel-grid">${relatedHtml}</div>
+      </div>` : ''}
+    </div>`;
+
+  // Animate diet bars after short delay
   setTimeout(() => {
-    document.querySelectorAll('.diet-fill').forEach(el => {
+    panel.querySelectorAll('.diet-f').forEach(el => {
       el.style.width = el.dataset.pct + '%';
     });
   }, 400);
 }
 
-function closePanel() {
-  stopAllSounds();
-  document.getElementById('panelOverlay').classList.remove('open');
-  document.getElementById('speciesPanel').classList.remove('open');
-  document.body.style.overflow = '';
-  currentSpeciesId = null;
-  panelHistory = [];
-}
-
-function renderPanel(s) {
-  const panel = document.getElementById('speciesPanel');
-
-  const iucnCircles = IUCN_CATS.map(c =>
-    `<div class="iucn-c ic-${c}${c === s.iucn ? ' act' : ''}" title="${IUCN_LABELS[c]}">${c}</div>`
-  ).join('');
-
-  const statsHTML = s.stats.map(st =>
-    `<div class="pstat">
-      <div class="pstat-lbl">${st.l}</div>
-      <div class="pstat-val">${st.v} <span class="pstat-unit">${st.u}</span></div>
-    </div>`
-  ).join('');
-
-  const dietHTML = s.diet.map(d =>
-    `<div class="diet-row">
-      <div class="diet-lbl">${d.label}</div>
-      <div class="diet-track"><div class="diet-fill" style="background:${d.color};" data-pct="${d.pct}"></div></div>
-      <div class="diet-pct">${d.pct}%</div>
-    </div>`
-  ).join('');
-
-  const matingHTML = s.mating.map(m =>
-    `<div class="mating-item">
-      <div class="mating-lbl">${m.l}</div>
-      <div class="mating-val">${m.v}</div>
-    </div>`
-  ).join('');
-
-  const funFactsHTML = s.funFacts.map(f =>
-    `<div class="ff-card">
-      <div class="ff-icon">${f.icon}</div>
-      <p class="ff-text">${f.text}</p>
-    </div>`
-  ).join('');
-
-  const attrsHTML = s.attrs.map(a =>
-    `<span class="attr-chip" style="background:${a.cls}22;border-color:${a.cls}44;color:${a.cls}cc;">${a.lbl}</span>`
-  ).join('');
-
-  const taxHTML = Object.entries(s.taxonomy).map(([k, v]) =>
-    `<div class="taxon-row">
-      <span class="taxon-key">${k}</span>
-      <span class="taxon-val${k === 'Species' ? ' plain' : ''}">${v}</span>
-    </div>`
-  ).join('');
-
-  const relatedHTML = (s.related || [])
-    .filter(rid => SPECIES[rid])
-    .map(rid => {
-      const r = SPECIES[rid];
-      return `<div class="rel-card" onclick="openSpecies('${rid}')">
-        <div class="rel-icon">${r.icon}</div>
-        <div>
-          <div class="rel-name">${r.name}</div>
-          <div class="rel-sci">${r.sci}</div>
-        </div>
-      </div>`;
-    }).join('');
-
-  const threatsHTML = (s.threats || []).map(t =>
-    `<div class="threat-item">⚠️ ${t}</div>`
-  ).join('');
-
-  const rangeHTML = (s.range || []).map(r =>
-    `<span class="range-tag">${r}</span>`
-  ).join('');
-
-  const trendCls = s.popTrend === 'Decreasing' ? 'trend-dec' : s.popTrend === 'Increasing' ? 'trend-inc' : 'trend-sta';
-  const trendIcon = s.popTrend === 'Decreasing' ? '↘' : s.popTrend === 'Increasing' ? '↗' : '→';
-
-  const hasPrev = panelHistory.length > 0;
-
-  panel.innerHTML = `
-    <!-- Close bar -->
-    <div class="panel-close">
-      <button class="panel-close-btn" onclick="closePanel()">
-        ← Close
-      </button>
-      <div style="display:flex;align-items:center;gap:0.5rem;">
-        <button class="share-btn" onclick="shareSpecies('${s.id}')">🔗 Share</button>
-        ${hasPrev ? `<button class="pnav-btn" onclick="goBack()" title="Previous">←</button>` : ''}
-      </div>
-    </div>
-
-    <!-- Hero -->
-    <div class="panel-hero">
-      <img class="panel-hero-img" src="${s.photo}" alt="${s.name}"
-           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-      <div class="panel-hero-emoji" style="display:none;">${s.icon}</div>
-      <div class="panel-hero-emoji">${s.icon}</div>
-      <div class="panel-hero-overlay"></div>
-      <div class="panel-hero-content">
-        <div class="panel-status-badges">
-          <span class="p-badge b-${s.status}">${s.statusLabel}</span>
-          <span class="p-badge b-cat">${s.category.charAt(0).toUpperCase() + s.category.slice(1)}</span>
-        </div>
-        <div class="panel-name">${s.name}</div>
-        <div class="panel-sci">${s.sci}</div>
-      </div>
-    </div>
-
-    <!-- Quick stats -->
-    <div class="panel-stats">${statsHTML}</div>
-
-    <!-- Sound bar -->
-    <div class="panel-sound-bar">
-      <button class="sound-play-btn" data-id="${s.id}" onclick="playSound('${s.id}', this)">
-        <span class="sound-play-icon">▶</span> Play ${s.name}
-      </button>
-      <div class="sound-waves-viz">
-        <div class="swv"></div><div class="swv"></div><div class="swv"></div>
-        <div class="swv"></div><div class="swv"></div><div class="swv"></div>
-        <div class="swv"></div>
-      </div>
-      <span class="sound-note">🎧 Auto-plays on click</span>
-    </div>
-
-    <!-- Body -->
-    <div class="panel-body">
-
-      <!-- About -->
-      <div class="psec">
-        <div class="psec-h">About ${s.name}</div>
-        <p class="psec-text">${s.about}</p>
-      </div>
-
-      <!-- Characteristics -->
-      <div class="psec">
-        <div class="psec-h">Characteristics</div>
-        <div class="attr-chips">${attrsHTML}</div>
-      </div>
-
-      <!-- Diet -->
-      <div class="psec">
-        <div class="psec-h">Diet & Feeding</div>
-        <div>${dietHTML}</div>
-      </div>
-
-      <!-- Habitat & Range -->
-      <div class="psec">
-        <div class="psec-h">Habitat & Range</div>
-        <p class="psec-text">${s.habitat}</p>
-        <div class="range-tags" style="margin-top:1rem;">${rangeHTML}</div>
-      </div>
-
-      <!-- Behaviour -->
-      <div class="psec">
-        <div class="psec-h">Behaviour & Lifestyle</div>
-        <p class="psec-text">${s.behavior}</p>
-      </div>
-
-      <!-- Mating -->
-      <div class="psec">
-        <div class="psec-h">Mating & Reproduction</div>
-        <div class="mating-grid">${matingHTML}</div>
-      </div>
-
-      <!-- Fun facts -->
-      <div class="psec" style="background:var(--surface);">
-        <div class="psec-h" style="color:var(--amber-l);">★ Fascinating Facts</div>
-        <div class="fun-facts">${funFactsHTML}</div>
-      </div>
-
-      <!-- Conservation -->
-      <div class="psec">
-        <div class="psec-h">Population & Conservation</div>
-        <div class="iucn-stats">
-          <div class="iucn-stat">
-            <div class="iucn-stat-lbl">Population Trend</div>
-            <div class="iucn-stat-val ${trendCls}">${trendIcon} ${s.popTrend}</div>
-          </div>
-          <div class="iucn-stat">
-            <div class="iucn-stat-lbl">Population Size</div>
-            <div class="iucn-stat-val">${s.popNum}</div>
-          </div>
-        </div>
-        <div class="iucn-scale">${iucnCircles}</div>
-        <p style="font-size:0.6rem;color:var(--ink3);letter-spacing:0.08em;margin-top:0.5rem;">← NE (Not Evaluated) to EX (Extinct) — IUCN Red List Scale →</p>
-        <div style="margin-top:0.75rem;background:var(--surface2);border-radius:6px;padding:0.75rem 1rem;font-size:0.82rem;color:var(--ink2);">
-          📍 ${s.popWhere}
-        </div>
-      </div>
-
-      <!-- Threats -->
-      <div class="psec">
-        <div class="psec-h">Threats & Conservation</div>
-        <div class="threat-list">${threatsHTML}</div>
-      </div>
-
-      <!-- Taxonomy -->
-      <div class="psec">
-        <div class="psec-h">Scientific Classification</div>
-        <div class="taxon-table">${taxHTML}</div>
-      </div>
-
-      <!-- Related -->
-      ${relatedHTML ? `<div class="psec">
-        <div class="psec-h">Related Species</div>
-        <div class="related-grid">${relatedHTML}</div>
-      </div>` : ''}
-
-    </div>
-  `;
-
-  // Scroll panel to top
-  panel.scrollTop = 0;
-}
-
-function goBack() {
-  if (panelHistory.length > 0) {
-    const prevId = panelHistory.pop();
-    currentSpeciesId = prevId;
-    stopAllSounds();
-    const s = SPECIES[prevId];
-    if (s) {
-      renderPanel(s);
-      setTimeout(() => {
-        document.querySelectorAll('.diet-fill').forEach(el => {
-          el.style.width = el.dataset.pct + '%';
-        });
-      }, 400);
-    }
-  }
-}
-
 function shareSpecies(id) {
-  const s = SPECIES[id];
-  if (!s) return;
+  const url = `${window.location.origin}${window.location.pathname}?species=${id}`;
   if (navigator.share) {
-    navigator.share({
-      title: `${s.name} — Roots & Roars`,
-      text: `Discover the ${s.name} (${s.sci}) on Roots & Roars, India's wildlife encyclopedia.`,
-      url: window.location.href
-    });
+    navigator.share({ title: 'Roots & Roars', url }).catch(() => {});
   } else {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-      alert('Link copied to clipboard!');
+    navigator.clipboard?.writeText(url).then(() => {
+      const btn = document.querySelector('.p-share');
+      if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => btn.innerHTML = '⎗ Share', 2000); }
     });
   }
+}
+
+function slugify(str) {
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
