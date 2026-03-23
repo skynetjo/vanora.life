@@ -3,88 +3,110 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Roots & Roars — India's Wildlife & Trees Encyclopedia</title>
-<meta name="description" content="India's most comprehensive free encyclopedia of wildlife and trees. Powered by Wikipedia — explore thousands of species with real photos, facts, sounds and conservation status.">
+<title>Vanora — India's Wildlife & Trees Encyclopedia</title>
+<meta name="description" content="India's most beautiful free encyclopedia of wildlife and trees. Explore thousands of species with real photos, sounds, skeleton anatomy and conservation data.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+<!-- PROGRESS BAR -->
 <div id="prog"></div>
 
-<div class="overlay" id="overlay" onclick="if(event.target===this)closePanel()"></div>
-<aside class="panel" id="panel"></aside>
+<!-- THREAD SVG OVERLAY -->
+<svg id="thread-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<!-- BACKDROP BLUR -->
+<div id="backdrop" onclick="closePanel()"></div>
+
+<!-- DETAIL PANEL -->
+<aside class="panel" id="panel">
+  <div class="panel-notch"></div>
+</aside>
+
+<!-- SKELETON ANATOMY MODAL -->
+<div class="skeleton-modal" id="skeletonModal">
+  <div class="skeleton-modal-inner">
+    <button class="skeleton-close" onclick="closeSkeleton()">×</button>
+    <div class="skeleton-title" id="skelTitle">Bengal Tiger</div>
+    <div class="skeleton-sub">Skeletal anatomy · <em id="skelSci">Panthera tigris tigris</em></div>
+    <div class="skeleton-viz">
+      <img class="skeleton-animal-img" id="skelImg" src="" alt="">
+      <div class="skeleton-svg-overlay" id="skelSvgWrap"></div>
+      <div class="skeleton-label" id="skelLabel">X-RAY VIEW</div>
+    </div>
+    <div class="skeleton-toggle">
+      <button class="skel-btn active" onclick="skelMode('xray',this)">🦴 Skeleton X-Ray</button>
+      <button class="skel-btn" onclick="skelMode('photo',this)">📷 Normal Photo</button>
+      <button class="skel-btn" onclick="skelMode('overlay',this)">🔬 Overlay</button>
+    </div>
+  </div>
+</div>
 
 <!-- HEADER -->
 <header class="hdr" id="hdr">
-  <a href="#" class="logo" onclick="showView('home');return false;">Roots &amp; <span class="em">Roars</span><div class="logo-pip"></div></a>
+  <a href="#" class="logo" onclick="showView('home');return false;">
+    <span class="logo-main">Vanora<em>.</em></span>
+    <span class="logo-dot"></span>
+  </a>
   <ul class="hdr-nav">
     <li><a href="#" onclick="showCatPage('mammals');return false;">Mammals</a></li>
     <li><a href="#" onclick="showCatPage('birds');return false;">Birds</a></li>
     <li><a href="#" onclick="showCatPage('reptiles');return false;">Reptiles</a></li>
     <li><a href="#" onclick="showCatPage('trees');return false;">Trees</a></li>
     <li><a href="#" onclick="document.getElementById('az-sec').scrollIntoView({behavior:'smooth'});return false;">A–Z</a></li>
+    <li><a href="#" onclick="document.getElementById('patron-sec').scrollIntoView({behavior:'smooth'});return false;">Support</a></li>
   </ul>
   <div class="hdr-right">
     <div class="hdr-search">
       <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" id="hdrQ" placeholder="Quick search…" oninput="doSearch(this.value,'hdrSug')" onfocus="if(this.value.length>1)document.getElementById('hdrSug').classList.add('show')" onblur="setTimeout(()=>document.getElementById('hdrSug').classList.remove('show'),220)">
+      <input type="text" id="hdrQ" placeholder="Search species…" oninput="doSearch(this.value,'hdrSug')" onfocus="if(this.value.length>1)document.getElementById('hdrSug').classList.add('show')" onblur="setTimeout(()=>document.getElementById('hdrSug').classList.remove('show'),220)">
       <div class="sug-box" id="hdrSug"></div>
     </div>
-    <button class="btn-cta" onclick="openModal()">Subscribe Free</button>
+    <button class="btn-cta" onclick="openModal()">Join Free</button>
   </div>
 </header>
 
-<!-- VIEW: HOME -->
+<!-- ════ VIEW: HOME ════ -->
 <div class="view active" id="view-home">
 
-  <!-- ═══════════════════════════════════════
-       HERO — animalia.bio style
-       Full screen · bold headline · animal photo
-  ════════════════════════════════════════ -->
+  <!-- HERO -->
   <section class="hero">
-
-    <!-- Subtle botanical background shapes -->
-    <div class="hero-bg-shapes"></div>
-
-    <!-- LEFT: headline + stats + search -->
     <div class="hero-left">
-      <div class="hero-eyebrow">🇮🇳 India's Wildlife &amp; Trees Encyclopedia</div>
-
+      <div class="hero-eyebrow">🇮🇳 India's Living Natural World</div>
       <h1 class="hero-h1">
-        Explore,<br>
-        Learn,<br>
-        <span class="h1-green">Protect.</span>
+        Discover<br>
+        India's<br>
+        <em>Wild Soul.</em>
       </h1>
-
-      <p class="hero-tagline">the extraordinary diversity<br>of India's natural world</p>
-
+      <p class="hero-tagline">
+        Every species. Every story.<br>
+        From Himalayan heights to mangrove depths.
+      </p>
       <div class="hero-counts">
         <div class="hcount" onclick="showCatPage('mammals')">
           <span class="hcount-n">500+</span>
-          <span class="hcount-l">mammals</span>
+          <span class="hcount-l">Mammals</span>
         </div>
         <div class="hcount" onclick="showCatPage('birds')">
           <span class="hcount-n">1,300+</span>
-          <span class="hcount-l">birds</span>
+          <span class="hcount-l">Birds</span>
         </div>
         <div class="hcount" onclick="showCatPage('reptiles')">
           <span class="hcount-n">460+</span>
-          <span class="hcount-l">reptiles</span>
+          <span class="hcount-l">Reptiles</span>
         </div>
         <div class="hcount" onclick="showCatPage('trees')">
           <span class="hcount-n">1,200+</span>
-          <span class="hcount-l">trees</span>
+          <span class="hcount-l">Trees</span>
         </div>
       </div>
-
       <div class="hero-search-wrap">
         <input type="text" class="hero-inp" id="heroQ" placeholder="Try 'Bengal Tiger', 'Snow Leopard', 'Banyan'…" oninput="doSearch(this.value,'heroSug')">
         <button class="hero-sb">Search</button>
         <div class="sug-box" id="heroSug"></div>
       </div>
-
-      <!-- Slide indicator like animalia.bio -->
       <div class="hero-slide-bar">
         <button class="slide-arrow" onclick="heroSlide(-1)">‹</button>
         <span class="slide-count" id="slideCount">01 / 06</span>
@@ -92,16 +114,15 @@
         <span class="slide-label" id="slideLabel">Bengal Tiger</span>
       </div>
     </div>
-
-    <!-- RIGHT: animal photo, full bleed, no frame -->
     <div class="hero-right">
       <div class="hero-img-fade"></div>
+      <div class="hero-img-fade-bottom"></div>
       <img class="hero-animal" id="heroAnimalImg"
         src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Tiger_in_Ranthambhore.jpg/1280px-Tiger_in_Ranthambhore.jpg"
         alt="Bengal Tiger"
-        onerror="this.style.opacity='0.3'">
+        onerror="this.style.opacity='0.2'">
+      <div class="hero-sci-label">Panthera tigris tigris<br>Bengal Tiger</div>
     </div>
-
   </section>
 
   <!-- TICKER -->
@@ -110,12 +131,12 @@
   <!-- FILTER BAR -->
   <div class="fbar rv">
     <div class="fbar-inner">
-      <button class="ftab active" data-cat="all" onclick="setFilter('all',this)"><span class="ftab-ico">🌍</span> All Species</button>
-      <button class="ftab" data-cat="mammals" onclick="setFilter('mammals',this)"><span class="ftab-ico">🐯</span> Mammals</button>
-      <button class="ftab" data-cat="birds" onclick="setFilter('birds',this)"><span class="ftab-ico">🦚</span> Birds</button>
-      <button class="ftab" data-cat="reptiles" onclick="setFilter('reptiles',this)"><span class="ftab-ico">🐊</span> Reptiles</button>
-      <button class="ftab" data-cat="trees" onclick="setFilter('trees',this)"><span class="ftab-ico">🌳</span> Trees</button>
-      <button class="ftab" data-cat="endangered" onclick="setFilter('endangered',this)"><span class="ftab-ico">🔴</span> Endangered</button>
+      <button class="ftab active" onclick="setFilter('all',this)"><span class="ftab-ico">🌍</span> All Species</button>
+      <button class="ftab" onclick="setFilter('mammals',this)"><span class="ftab-ico">🐯</span> Mammals</button>
+      <button class="ftab" onclick="setFilter('birds',this)"><span class="ftab-ico">🦚</span> Birds</button>
+      <button class="ftab" onclick="setFilter('reptiles',this)"><span class="ftab-ico">🐊</span> Reptiles</button>
+      <button class="ftab" onclick="setFilter('trees',this)"><span class="ftab-ico">🌳</span> Trees</button>
+      <button class="ftab" onclick="setFilter('endangered',this)"><span class="ftab-ico">🔴</span> Endangered</button>
     </div>
   </div>
 
@@ -130,32 +151,32 @@
     </div>
   </div>
 
-  <!-- FEATURED SECTION -->
+  <!-- FEATURED -->
   <section class="feat-sec rv">
     <div class="feat-inner">
       <div class="feat-grid">
         <div>
           <div class="sec-label">Featured Today</div>
           <h2 class="sec-h">India's apex <em>predator</em></h2>
-          <p class="sec-p">The Bengal Tiger — India's national animal and most iconic wildlife species. From a low of fewer than 2,000 in 1973, Project Tiger has brought their numbers back to over 4,500. A story of what conservation can achieve.</p>
+          <p class="sec-p">The Bengal Tiger — India's national animal and most iconic species. From a critical low of fewer than 2,000 in 1973, Project Tiger has brought numbers back to over 4,500. A story of what conservation can achieve when a nation decides to act.</p>
           <div class="feat-btns">
-            <button class="feat-btn primary" onclick="openSpecies('tiger')">Explore Bengal Tiger →</button>
-            <button class="feat-btn" onclick="openSpecies('snowleopard')">Snow Leopard</button>
-            <button class="feat-btn" onclick="openSpecies('gharial')">Gharial</button>
-            <button class="feat-btn" onclick="openSpecies('elephant')">Asian Elephant</button>
+            <button class="feat-btn primary" onclick="openSpeciesFromBtn(event,'tiger')">Explore Bengal Tiger →</button>
+            <button class="feat-btn" onclick="openSpeciesFromBtn(event,'snowleopard')">Snow Leopard</button>
+            <button class="feat-btn" onclick="openSpeciesFromBtn(event,'gharial')">Gharial</button>
+            <button class="feat-btn" onclick="openSpeciesFromBtn(event,'elephant')">Asian Elephant</button>
           </div>
         </div>
         <div>
-          <div class="day-card" onclick="openSpecies('tiger')">
+          <div class="day-card" onclick="openSpeciesFromBtn(event,'tiger')">
             <div class="day-img-wrap">
               <img class="day-img" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Tiger_in_Ranthambhore.jpg/800px-Tiger_in_Ranthambhore.jpg" alt="Bengal Tiger" onerror="this.style.display='none'">
               <div class="day-grad"></div>
-              <div class="day-badge">⭐ Animal of the Day</div>
+              <div class="day-badge">⭐ Species of the Day</div>
               <div class="day-overlay-name">Bengal Tiger</div>
             </div>
             <div class="day-body">
               <div class="day-sci">Panthera tigris tigris</div>
-              <p class="day-desc">India's apex predator and national animal. Each tiger's stripe pattern is as unique as a human fingerprint.</p>
+              <p class="day-desc">India's apex predator. Each tiger's stripe pattern is as unique as a human fingerprint — the basis of India's entire camera-trap census.</p>
               <div class="day-cta">Read Full Profile <span>→</span></div>
             </div>
           </div>
@@ -164,11 +185,11 @@
     </div>
   </section>
 
-  <!-- CATEGORIES GRID -->
+  <!-- CATEGORIES -->
   <div class="cat-sec rv">
     <div class="sec-label">Browse by Category</div>
-    <h2 style="font-family:var(--serif);font-size:1.9rem;color:var(--ink);font-weight:700;margin-bottom:.4rem;">Explore India's <em style="color:var(--green-l);font-style:italic;">biodiversity</em></h2>
-    <p style="font-size:.85rem;color:var(--ink3);margin-bottom:2rem;max-width:460px;">Hundreds of species in each category — browse by group or search by name.</p>
+    <h2 style="font-family:var(--serif);font-size:2rem;color:var(--ink);font-weight:600;margin-bottom:.4rem;">Explore India's <em style="color:var(--leaf-l);font-style:italic;">biodiversity</em></h2>
+    <p style="font-size:.84rem;color:var(--ink3);margin-bottom:2rem;max-width:480px;">Hundreds of species in each category — browse by group, or search by name above.</p>
     <div class="cat-grid" id="catGrid"></div>
   </div>
 
@@ -176,18 +197,71 @@
   <section class="az-sec" id="az-sec">
     <div class="az-inner rv">
       <div class="sec-label">A–Z Encyclopedia</div>
-      <h2 style="font-family:var(--serif);font-size:1.9rem;color:var(--ink);font-weight:700;margin-bottom:.4rem;">Browse every <em style="color:var(--green-l);font-style:italic;">species</em></h2>
-      <p style="font-size:.85rem;color:var(--ink3);margin-bottom:1.4rem;">Alphabetical index of 3,500+ Indian species.</p>
+      <h2 style="font-family:var(--serif);font-size:2rem;color:var(--ink);font-weight:600;margin-bottom:.4rem;">Browse every <em style="color:var(--leaf-l);font-style:italic;">species</em></h2>
+      <p style="font-size:.84rem;color:var(--ink3);margin-bottom:1.5rem;">Alphabetical index of 3,500+ Indian species.</p>
       <div class="az-grid" id="azGrid"></div>
       <div class="az-results" id="azResults"></div>
+    </div>
+  </section>
+
+  <!-- CONSERVATION PATRON (MONETIZATION) -->
+  <section class="patron-sec rv" id="patron-sec">
+    <div class="patron-inner">
+      <div class="patron-grid">
+        <div>
+          <div class="sec-label">Support the Mission</div>
+          <h2 class="patron-h">Become a<br><em>Conservation</em><br>Patron</h2>
+          <p class="patron-p">Your support funds wildlife photography expeditions, adds new species profiles, and keeps Vanora free for students, researchers, and nature lovers across India.</p>
+          <p style="font-size:0.7rem;color:var(--ink3);line-height:1.6;">Join 2,400+ patrons who help document India's vanishing wilderness.</p>
+        </div>
+        <div>
+          <div class="patron-cards">
+            <div class="patron-card">
+              <div class="patron-price">₹149<span>/mo</span></div>
+              <div class="patron-title">Explorer</div>
+              <ul class="patron-features">
+                <li>Ad-free experience</li>
+                <li>Weekly species newsletter</li>
+                <li>Species audio library</li>
+                <li>Downloadable field guides</li>
+              </ul>
+              <button class="patron-cta">Start Exploring</button>
+            </div>
+            <div class="patron-card featured">
+              <div class="patron-price">₹349<span>/mo</span></div>
+              <div class="patron-title">Naturalist</div>
+              <ul class="patron-features">
+                <li>Everything in Explorer</li>
+                <li>Skeleton X-ray viewer</li>
+                <li>Rare species alerts</li>
+                <li>HD species photography</li>
+                <li>Name a species profile</li>
+              </ul>
+              <button class="patron-cta">Become Naturalist</button>
+            </div>
+            <div class="patron-card">
+              <div class="patron-price">₹999<span>/mo</span></div>
+              <div class="patron-title">Conservator</div>
+              <ul class="patron-features">
+                <li>Everything in Naturalist</li>
+                <li>Monthly expert talks</li>
+                <li>Adopt a species</li>
+                <li>Research database access</li>
+                <li>Wildlife tour discounts</li>
+              </ul>
+              <button class="patron-cta">Become Conservator</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
   <!-- NEWSLETTER -->
   <section class="nl-sec rv">
     <div class="nl-inner">
-      <h2 class="nl-h">Stay rooted. Get wild updates.</h2>
-      <p class="nl-s">New species profiles, conservation news &amp; rare sightings — weekly in your inbox. Free, always.</p>
+      <h2 class="nl-h">Stay rooted. Get <em>wild</em> updates.</h2>
+      <p class="nl-s">New species profiles, conservation stories &amp; rare sightings — delivered weekly. Free, always.</p>
       <div class="nl-form">
         <input type="email" class="nl-inp" id="nlEmail" placeholder="your@email.com">
         <button class="nl-btn" onclick="nlSub()">Subscribe Free</button>
@@ -200,27 +274,31 @@
     <div class="ft">
       <div class="ft-top">
         <div>
-          <span class="ft-logo">Roots &amp; <em>Roars</em></span>
-          <p class="ft-desc">A free encyclopedia of India's trees, forests and wild creatures. Powered by Wikipedia API — always up to date, always growing.</p>
+          <span class="ft-logo">Vanora<em>.</em></span>
+          <p class="ft-desc">A free encyclopedia of India's trees, forests and wild creatures. Powered by Wikipedia API — always growing, always free.</p>
           <div class="ft-soc"><a href="#" class="ft-s">in</a><a href="#" class="ft-s">tw</a><a href="#" class="ft-s">ig</a><a href="#" class="ft-s">yt</a></div>
         </div>
-        <div><div class="ft-ch">Mammals</div><ul class="ft-links"><li><a href="#" onclick="openSpecies('tiger');return false;">Bengal Tiger</a></li><li><a href="#" onclick="openSpecies('elephant');return false;">Asian Elephant</a></li><li><a href="#" onclick="openSpecies('snowleopard');return false;">Snow Leopard</a></li><li><a href="#" onclick="openSpecies('rhino');return false;">Indian Rhino</a></li></ul></div>
-        <div><div class="ft-ch">Wildlife</div><ul class="ft-links"><li><a href="#" onclick="openSpecies('peacock');return false;">Indian Peacock</a></li><li><a href="#" onclick="openSpecies('gharial');return false;">Gharial</a></li><li><a href="#" onclick="openSpecies('kingcobra');return false;">King Cobra</a></li><li><a href="#" onclick="openSpecies('chital');return false;">Spotted Deer</a></li></ul></div>
-        <div><div class="ft-ch">Trees</div><ul class="ft-links"><li><a href="#" onclick="openSpecies('banyan');return false;">Banyan Tree</a></li><li><a href="#" onclick="openSpecies('peepal');return false;">Peepal Tree</a></li><li><a href="#" onclick="openSpecies('bamboo');return false;">Bamboo</a></li><li><a href="#" onclick="openModal();return false;">Subscribe</a></li></ul></div>
+        <div><div class="ft-ch">Mammals</div><ul class="ft-links"><li><a href="#" onclick="openSpeciesFromBtn(event,'tiger');return false;">Bengal Tiger</a></li><li><a href="#" onclick="openSpeciesFromBtn(event,'elephant');return false;">Asian Elephant</a></li><li><a href="#" onclick="openSpeciesFromBtn(event,'snowleopard');return false;">Snow Leopard</a></li><li><a href="#" onclick="openSpeciesFromBtn(event,'rhino');return false;">Indian Rhino</a></li></ul></div>
+        <div><div class="ft-ch">Wildlife</div><ul class="ft-links"><li><a href="#" onclick="openSpeciesFromBtn(event,'peacock');return false;">Indian Peacock</a></li><li><a href="#" onclick="openSpeciesFromBtn(event,'gharial');return false;">Gharial</a></li><li><a href="#" onclick="openSpeciesFromBtn(event,'kingcobra');return false;">King Cobra</a></li><li><a href="#" onclick="openSpeciesFromBtn(event,'chital');return false;">Spotted Deer</a></li></ul></div>
+        <div><div class="ft-ch">Trees</div><ul class="ft-links"><li><a href="#" onclick="openSpeciesFromBtn(event,'banyan');return false;">Banyan Tree</a></li><li><a href="#" onclick="openSpeciesFromBtn(event,'peepal');return false;">Peepal Tree</a></li><li><a href="#" onclick="openSpeciesFromBtn(event,'bamboo');return false;">Bamboo</a></li><li><a href="#" onclick="openModal();return false;">Join Free</a></li></ul></div>
       </div>
-      <div class="ft-btm"><span class="ft-copy">© 2025 Roots &amp; Roars. Free for everyone, always. 🇮🇳</span><span class="ft-copy">Powered by Wikipedia API · Made with ❤️ for India's biodiversity</span></div>
+      <div class="ft-btm">
+        <span class="ft-copy">© 2025 Vanora.life — Free for everyone, always. 🇮🇳</span>
+        <span class="ft-copy">Powered by Wikipedia API · Made with ❤️ for India's biodiversity</span>
+      </div>
     </div>
   </footer>
-</div>
 
-<!-- VIEW: CATEGORY PAGE -->
+</div><!-- /view-home -->
+
+<!-- ════ VIEW: CATEGORY PAGE ════ -->
 <div class="view" id="view-category">
   <div class="cat-hero-pg">
     <h1 id="catPageTitle">Mammals of India</h1>
     <p id="catPageSub">Explore documented mammal species</p>
-    <button onclick="showView('home')" style="margin-top:1rem;padding:.5rem 1.2rem;background:transparent;border:1px solid var(--border2);color:var(--ink3);border-radius:6px;cursor:pointer;font-family:var(--font);font-size:.74rem;font-weight:600;transition:all .2s;">← Back to Home</button>
+    <button onclick="showView('home')" style="padding:.5rem 1.2rem;background:transparent;border:1px solid var(--border2);color:var(--ink3);border-radius:6px;cursor:pointer;font-family:var(--sans);font-size:.72rem;font-weight:600;transition:all .2s;">← Back to Home</button>
   </div>
-  <div style="max-width:1400px;margin:0 auto;padding:2.5rem 3rem;">
+  <div style="max-width:1440px;margin:0 auto;padding:2.5rem 3rem;">
     <div class="sp-grid" id="catGrid2"></div>
     <div class="load-more-wrap" id="catLoadMore" style="display:none;margin-top:1rem;">
       <button class="load-more-btn" id="catLoadBtn">Load more →</button>
@@ -228,11 +306,11 @@
   </div>
 </div>
 
-<!-- MODAL -->
+<!-- SUBSCRIBE MODAL -->
 <div class="modal-bg" id="modal">
   <div class="modal">
     <button class="mx" onclick="closeModal()">×</button>
-    <div class="mh">Join Roots &amp; Roars</div>
+    <div class="mh">Join Vanora</div>
     <p class="ms">Weekly species profiles, conservation stories and rare sighting alerts from India's wild places.</p>
     <input type="text" class="mi" placeholder="Your name">
     <input type="email" class="mi" placeholder="Email address">
