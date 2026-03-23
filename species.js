@@ -1,12 +1,12 @@
 // ═══════════════════════════════════════════════════════
-// ROOTS & ROARS — Species Panel
-// Deep profiles for featured species
-// Wikipedia API fetch for all others
+// VANORA — Species Panel v2
+// Thread-connected detail panel · Refined editorial design
 // ═══════════════════════════════════════════════════════
 
 const STATUS_LABELS = {
   LC:'Least Concern', NT:'Near Threatened', VU:'Vulnerable',
-  EN:'Endangered', CR:'Critically Endangered', EW:'Extinct in Wild', EX:'Extinct', DD:'Data Deficient', NE:'Not Evaluated'
+  EN:'Endangered', CR:'Critically Endangered', EW:'Extinct in Wild',
+  EX:'Extinct', DD:'Data Deficient', NE:'Not Evaluated'
 };
 
 function openSpecies(id) {
@@ -14,7 +14,6 @@ function openSpecies(id) {
   if (s) {
     renderDeepPanel(s);
   } else {
-    // Check WIKI_SPECIES
     const ws = WIKI_SPECIES.find(w => w.id === id || slugify(w.name) === id);
     if (ws) {
       renderWikiPanel(ws.name, ws.sci, ws.cat, ws.status, ws.icon || '🐾');
@@ -22,36 +21,43 @@ function openSpecies(id) {
       renderWikiPanel(id, '', 'wildlife', 'LC', '🐾');
     }
   }
-  document.getElementById('overlay').classList.add('open');
-  document.getElementById('panel').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  openPanel();
 }
 
 function openWikiSpecies(name, sci, cat, status, icon) {
   renderWikiPanel(name, sci, cat, status, icon);
-  document.getElementById('overlay').classList.add('open');
-  document.getElementById('panel').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  openPanel();
 }
 
 function closePanel() {
   stopAllSounds();
-  document.getElementById('overlay').classList.remove('open');
+  hideThread();
+  document.getElementById('backdrop').classList.remove('open');
   document.getElementById('panel').classList.remove('open');
   document.body.style.overflow = '';
+  if (typeof activeCard !== 'undefined' && activeCard) {
+    activeCard.classList.remove('selected');
+    activeCard = null;
+  }
 }
 
-// ── WIKIPEDIA PANEL ──────────────────────────────────
+// ── WIKIPEDIA PANEL ───────────────────────────────────
 async function renderWikiPanel(name, sci, cat, status, icon) {
   const panel = document.getElementById('panel');
+  const isBird = cat === 'birds';
+  const isMammal = cat === 'mammals';
+  const canXray = isBird || isMammal;
+
   panel.innerHTML = `
+    <div class="panel-notch"></div>
     <div class="p-topbar">
-      <button class="p-close" onclick="closePanel()">← Close</button>
+      <button class="p-close" onclick="closePanel()">Back</button>
       <div class="p-topright">
+        ${canXray ? `<button class="p-share" onclick="openSkeletonFor('${esc(name)}','${esc(sci)}','')">🦴 X-Ray</button>` : ''}
         <button class="p-share" onclick="shareSpecies('${encodeURIComponent(name)}')">⎗ Share</button>
       </div>
     </div>
-    <div class="p-hero" style="background: linear-gradient(135deg,#101810,#1a2a18);">
+    <div class="p-hero" style="background:linear-gradient(140deg,#050e08,#0f2014);">
       <div class="p-hero-emoji-bg">${icon}</div>
       <div class="p-hero-grad"></div>
       <div class="p-wiki-src">📡 Wikipedia</div>
@@ -67,24 +73,20 @@ async function renderWikiPanel(name, sci, cat, status, icon) {
     <div class="p-body">
       <div class="p-sec">
         <div class="p-loading">
-          <div class="p-spin"></div><br>
-          Loading from Wikipedia…
+          <div class="p-spin"></div><br>Loading from Wikipedia…
         </div>
       </div>
     </div>`;
 
-  // Fetch from Wikipedia API
   try {
     const searchTerm = sci || name;
-    const apiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm.replace(' ','_'))}`;
+    const apiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm.replace(/ /g,'_'))}`;
     const res = await fetch(apiUrl);
     const data = await res.json();
 
-    // Also try to get image
     let imgUrl = data.thumbnail?.source?.replace(/\/\d+px-/, '/800px-') || '';
     if (!imgUrl && data.originalimage) imgUrl = data.originalimage.source;
 
-    // Update hero image if found
     if (imgUrl) {
       const heroEl = panel.querySelector('.p-hero');
       const img = document.createElement('img');
@@ -93,11 +95,18 @@ async function renderWikiPanel(name, sci, cat, status, icon) {
       img.alt = name;
       img.onerror = () => img.remove();
       heroEl.insertBefore(img, heroEl.firstChild);
+
+      // Update x-ray button with real image
+      if (canXray) {
+        const xrayBtn = panel.querySelector('.p-share');
+        if (xrayBtn && xrayBtn.textContent.includes('X-Ray')) {
+          xrayBtn.onclick = () => openSkeletonFor(name, sci, imgUrl);
+        }
+      }
     }
 
-    // Build description
     const extract = data.extract || 'No description available from Wikipedia.';
-    const shortDesc = extract.length > 800 ? extract.substring(0, 800) + '…' : extract;
+    const shortDesc = extract.length > 900 ? extract.substring(0, 900) + '…' : extract;
     const wikiUrl = data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(name.replace(/ /g,'_'))}`;
 
     panel.querySelector('.p-body').innerHTML = `
@@ -111,17 +120,22 @@ async function renderWikiPanel(name, sci, cat, status, icon) {
       ${sci ? `
       <div class="p-sec">
         <div class="p-sec-h">Scientific Classification</div>
-        <table class="taxon" width="100%">
+        <table width="100%">
           <tr class="trow"><td class="tk">Scientific Name</td><td class="tv">${sci}</td></tr>
           <tr class="trow"><td class="tk">Common Name</td><td class="tv plain">${name}</td></tr>
           <tr class="trow"><td class="tk">Category</td><td class="tv plain" style="text-transform:capitalize">${cat}</td></tr>
-          <tr class="trow"><td class="tk">IUCN Status</td><td class="tk b${status}" style="font-style:normal;">${STATUS_LABELS[status] || status}</td></tr>
+          <tr class="trow"><td class="tk">IUCN Status</td><td><span class="b${status}" style="padding:.1rem .45rem;border-radius:4px;font-size:.62rem;font-weight:700">${STATUS_LABELS[status] || status}</span></td></tr>
         </table>
       </div>` : ''}
-      <div class="p-sec">
-        <div class="p-sec-h">Want full species profile?</div>
-        <p class="p-text" style="font-size:.8rem;">This species uses a Wikipedia preview. To add a full deep profile with sounds, diet charts, fun facts, and more — add it to the <code style="background:rgba(255,255,255,.08);padding:.1rem .4rem;border-radius:4px;color:var(--green-l);">SPECIES</code> object in <strong>data.js</strong>.</p>
-      </div>`;
+      ${canXray ? `
+      <div class="p-sec" style="background:linear-gradient(135deg,rgba(255,255,255,0.02),rgba(29,158,64,0.04));border-radius:8px;">
+        <div class="p-sec-h">🦴 Anatomy & Skeleton</div>
+        <p class="p-text" style="margin-bottom:.82rem;">Explore the skeletal structure of this species with our interactive X-ray viewer.</p>
+        <button onclick="openSkeletonFor('${esc(name)}','${esc(sci)}','${imgUrl||''}')" style="display:flex;align-items:center;gap:.5rem;padding:.5rem 1rem;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--ink2);font-family:var(--sans);font-size:.7rem;font-weight:600;cursor:pointer;transition:all .2s;width:auto;" onmouseover="this.style.borderColor='var(--leaf-l)';this.style.color='var(--leaf-l)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--ink2)'">
+          🦴 Open Skeleton X-Ray Viewer
+        </button>
+      </div>` : ''}
+    `;
   } catch(e) {
     const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent((sci||name).replace(/ /g,'_'))}`;
     panel.querySelector('.p-body').innerHTML = `
@@ -134,8 +148,9 @@ async function renderWikiPanel(name, sci, cat, status, icon) {
 // ── DEEP PROFILE PANEL ───────────────────────────────
 function renderDeepPanel(s) {
   const panel = document.getElementById('panel');
-  const dietColors = ['#4a8c5c','#62b07a','#c8922a','#e0ac4a','#3a7fa8','#9d4edd'];
+  const dietColors = ['#1d9e40','#2eca55','#c07e18','#e09a2a','#3a7fa8','#9d4edd'];
   const iucnOrder = ['NE','DD','LC','NT','VU','EN','CR','EW','EX'];
+  const canXray = s.category === 'birds' || s.category === 'mammals';
 
   const statsHtml = (s.stats || []).map(st => `
     <div class="pst">
@@ -158,7 +173,7 @@ function renderDeepPanel(s) {
     <div class="ff-item"><div class="ff-ico">${f.icon}</div><div class="ff-txt">${f.text}</div></div>`).join('');
 
   const attrsHtml = (s.attrs || []).map(a => `
-    <span class="chip" style="background:${a.cls}22;border-color:${a.cls}44;color:${a.cls === '#374151' ? '#9ca3af' : a.cls === '#14532d' ? 'var(--green-l)' : '#e5e7eb'}">${a.lbl}</span>`).join('');
+    <span class="chip" style="background:${a.cls}20;border-color:${a.cls}35;color:${a.cls === '#374151' ? '#9ca3af' : a.cls === '#14532d' ? 'var(--leaf-l)' : '#e5e7eb'}">${a.lbl}</span>`).join('');
 
   const iucnHtml = iucnOrder.map(code => `
     <div class="ic ic-${code} ${s.iucn === code ? 'act' : ''}">${code}</div>`).join('');
@@ -181,9 +196,11 @@ function renderDeepPanel(s) {
   }).join('');
 
   panel.innerHTML = `
+    <div class="panel-notch"></div>
     <div class="p-topbar">
-      <button class="p-close" onclick="closePanel()">← Close</button>
+      <button class="p-close" onclick="closePanel()">Back</button>
       <div class="p-topright">
+        ${canXray ? `<button class="p-share" onclick="openSkeletonFor('${esc(s.name)}','${esc(s.sci)}','${s.photo||''}')">🦴 X-Ray</button>` : ''}
         <button class="p-share" onclick="shareSpecies('${s.id}')">⎗ Share</button>
       </div>
     </div>
@@ -211,10 +228,11 @@ function renderDeepPanel(s) {
       <div class="wave-viz">
         ${[1,2,3,4,5,6,7].map(() => '<div class="wv"></div>').join('')}
       </div>
-      <span class="snd-note">Authentic sound</span>
+      <span class="snd-note">Authentic call</span>
     </div>
 
     <div class="p-body">
+
       <div class="p-sec">
         <div class="p-sec-h">About</div>
         <p class="p-text">${s.about}</p>
@@ -226,7 +244,7 @@ function renderDeepPanel(s) {
       </div>` : ''}
 
       ${s.diet?.length ? `<div class="p-sec">
-        <div class="p-sec-h">Diet</div>
+        <div class="p-sec-h">Diet Breakdown</div>
         ${dietHtml}
       </div>` : ''}
 
@@ -245,6 +263,14 @@ function renderDeepPanel(s) {
         <div class="m-grid">${matingHtml}</div>
       </div>` : ''}
 
+      ${canXray ? `<div class="p-sec" style="background:linear-gradient(135deg,rgba(255,255,255,0.015),rgba(29,158,64,0.04));">
+        <div class="p-sec-h">🦴 Anatomy & Skeleton</div>
+        <p class="p-text" style="margin-bottom:.82rem;">Explore the internal skeletal structure with our interactive X-ray anatomy viewer.</p>
+        <button onclick="openSkeletonFor('${esc(s.name)}','${esc(s.sci)}','${s.photo||''}')" style="display:flex;align-items:center;gap:.5rem;padding:.52rem 1.1rem;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--ink2);font-family:var(--sans);font-size:.7rem;font-weight:600;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--leaf-l)';this.style.color='var(--leaf-l)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--ink2)'">
+          🦴 Open X-Ray Skeleton Viewer
+        </button>
+      </div>` : ''}
+
       ${s.funFacts?.length ? `<div class="p-sec">
         <div class="p-sec-h">Did You Know?</div>
         <div class="ff-list">${factsHtml}</div>
@@ -254,10 +280,10 @@ function renderDeepPanel(s) {
         <div class="p-sec-h">Conservation Status</div>
         <div class="iucn-scale">${iucnHtml}</div>
         <div class="iucn-row">
-          <div class="iucn-box"><div class="iucn-box-l">Status</div><div class="iucn-box-v b${s.iucn}">${s.statusLabel}</div></div>
+          <div class="iucn-box"><div class="iucn-box-l">Status</div><div class="iucn-box-v"><span class="b${s.iucn}" style="padding:.1rem .4rem;border-radius:4px;font-size:.7rem;font-weight:700">${s.statusLabel}</span></div></div>
           <div class="iucn-box"><div class="iucn-box-l">Population Trend</div><div class="iucn-box-v ${s.popTrend === 'Increasing' ? 'tinc' : s.popTrend === 'Decreasing' ? 'tdec' : 'tsta'}">${s.popTrend}</div></div>
           <div class="iucn-box"><div class="iucn-box-l">Known Population</div><div class="iucn-box-v">${s.popNum}</div></div>
-          <div class="iucn-box"><div class="iucn-box-l">Where Found</div><div class="iucn-box-v">${s.popWhere}</div></div>
+          <div class="iucn-box"><div class="iucn-box-l">Primary Range</div><div class="iucn-box-v">${s.popWhere}</div></div>
         </div>
       </div>
 
@@ -273,35 +299,40 @@ function renderDeepPanel(s) {
 
       ${taxonHtml ? `<div class="p-sec">
         <div class="p-sec-h">Taxonomy</div>
-        <table class="taxon" width="100%">${taxonHtml}</table>
+        <table width="100%">${taxonHtml}</table>
       </div>` : ''}
 
       ${relatedHtml ? `<div class="p-sec">
         <div class="p-sec-h">Related Species</div>
         <div class="rel-grid">${relatedHtml}</div>
       </div>` : ''}
+
     </div>`;
 
-  // Animate diet bars after short delay
+  // Animate diet bars
   setTimeout(() => {
     panel.querySelectorAll('.diet-f').forEach(el => {
       el.style.width = el.dataset.pct + '%';
     });
-  }, 400);
+  }, 450);
 }
 
 function shareSpecies(id) {
   const url = `${window.location.origin}${window.location.pathname}?species=${id}`;
   if (navigator.share) {
-    navigator.share({ title: 'Roots & Roars', url }).catch(() => {});
+    navigator.share({ title: 'Vanora', url }).catch(() => {});
   } else {
     navigator.clipboard?.writeText(url).then(() => {
-      const btn = document.querySelector('.p-share');
-      if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => btn.innerHTML = '⎗ Share', 2000); }
+      const btns = document.querySelectorAll('.p-share');
+      btns.forEach(btn => {
+        if (btn.textContent.includes('Share')) {
+          btn.textContent = '✓ Copied!';
+          setTimeout(() => btn.innerHTML = '⎗ Share', 2000);
+        }
+      });
     });
   }
 }
 
-function slugify(str) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
+function esc(s) { return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+function slugify(str) { return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
