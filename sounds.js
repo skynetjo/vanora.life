@@ -1,9 +1,8 @@
 // ═══════════════════════════════════════════════════
-// ROOTS & ROARS — Sound Engine
+// VANORA — Sound Engine
 // Real audio URLs where available, Web Audio synthesis fallback
 // ═══════════════════════════════════════════════════
 
-// Real audio URLs from Wikimedia Commons
 const SOUND_URLS = {
   tiger: 'https://upload.wikimedia.org/wikipedia/commons/7/73/Bengal_tiger_sound.ogg',
   elephant: 'https://upload.wikimedia.org/wikipedia/commons/a/a3/Elephant_trumpet.ogg',
@@ -24,7 +23,6 @@ function stopAllSounds() {
   currentNodes.forEach(n => { try { n.stop(); } catch(e){} });
   currentNodes = [];
   Object.values(audioElements).forEach(a => { a.pause(); a.currentTime = 0; });
-  // Reset all sound buttons
   document.querySelectorAll('.snd-btn').forEach(b => {
     b.classList.remove('playing');
     b.innerHTML = `<span class="snd-ico">🔊</span> Play Sound`;
@@ -38,7 +36,6 @@ function playSound(id, btn) {
   stopAllSounds();
   currentSndId = id;
 
-  // Try real audio first
   if (SOUND_URLS[id]) {
     const a = audioElements[id] || new Audio();
     audioElements[id] = a;
