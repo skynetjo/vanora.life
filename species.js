@@ -128,7 +128,7 @@ async function renderWikiPanel(name, sci, cat, status, icon) {
         </table>
       </div>` : ''}
       ${canXray ? `
-      <div class="p-sec" style="background:linear-gradient(135deg,rgba(255,255,255,0.02),rgba(29,158,64,0.04));border-radius:8px;">
+      <div class="p-sec" style="background:rgba(26,122,53,0.04);border-radius:8px;border:1px solid rgba(26,122,53,0.10);">
         <div class="p-sec-h">🦴 Anatomy & Skeleton</div>
         <p class="p-text" style="margin-bottom:.82rem;">Explore the skeletal structure of this species with our interactive X-ray viewer.</p>
         <button onclick="openSkeletonFor('${esc(name)}','${esc(sci)}','${imgUrl||''}')" style="display:flex;align-items:center;gap:.5rem;padding:.5rem 1rem;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--ink2);font-family:var(--sans);font-size:.7rem;font-weight:600;cursor:pointer;transition:all .2s;width:auto;" onmouseover="this.style.borderColor='var(--leaf-l)';this.style.color='var(--leaf-l)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--ink2)'">
@@ -173,7 +173,7 @@ function renderDeepPanel(s) {
     <div class="ff-item"><div class="ff-ico">${f.icon}</div><div class="ff-txt">${f.text}</div></div>`).join('');
 
   const attrsHtml = (s.attrs || []).map(a => `
-    <span class="chip" style="background:${a.cls}20;border-color:${a.cls}35;color:${a.cls === '#374151' ? '#9ca3af' : a.cls === '#14532d' ? 'var(--leaf-l)' : '#e5e7eb'}">${a.lbl}</span>`).join('');
+    <span class="chip" style="background:${a.cls}18;border:1px solid ${a.cls}30;color:${a.cls}">${a.lbl}</span>`).join('');
 
   const iucnHtml = iucnOrder.map(code => `
     <div class="ic ic-${code} ${s.iucn === code ? 'act' : ''}">${code}</div>`).join('');
@@ -263,7 +263,7 @@ function renderDeepPanel(s) {
         <div class="m-grid">${matingHtml}</div>
       </div>` : ''}
 
-      ${canXray ? `<div class="p-sec" style="background:linear-gradient(135deg,rgba(255,255,255,0.015),rgba(29,158,64,0.04));">
+      ${canXray ? `<div class="p-sec" style="background:rgba(26,122,53,0.04);border-radius:8px;border:1px solid rgba(26,122,53,0.10);">
         <div class="p-sec-h">🦴 Anatomy & Skeleton</div>
         <p class="p-text" style="margin-bottom:.82rem;">Explore the internal skeletal structure with our interactive X-ray anatomy viewer.</p>
         <button onclick="openSkeletonFor('${esc(s.name)}','${esc(s.sci)}','${s.photo||''}')" style="display:flex;align-items:center;gap:.5rem;padding:.52rem 1.1rem;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--ink2);font-family:var(--sans);font-size:.7rem;font-weight:600;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--leaf-l)';this.style.color='var(--leaf-l)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--ink2)'">
